@@ -131,7 +131,7 @@ impl ObservationBuilder<CovarianceMatrix> {
 ///
 /// assert_eq!(obs.context(), Some(context));
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Observation {
     /// The position in 2D cartesian space of the observation
     position: Point2<f64>,
