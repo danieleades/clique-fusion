@@ -17,6 +17,7 @@ pub const CHI2_2D_CONFIDENCE_95: f64 = 5.991;
 pub const CHI2_2D_CONFIDENCE_99: f64 = 9.210;
 
 #[must_use]
+#[derive(Debug)]
 pub struct ObservationBuilder<E> {
     position: Point2<f64>,
     error: E,
@@ -132,7 +133,7 @@ impl ObservationBuilder<CovarianceMatrix> {
 /// ```
 #[derive(Debug, Clone)]
 pub struct Observation {
-    /// The position in 2D cartesion space of the observation
+    /// The position in 2D cartesian space of the observation
     position: Point2<f64>,
 
     /// The covariance matrix of the position error.
@@ -172,7 +173,7 @@ impl Observation {
 
     /// The 'context' for the observation.
     ///
-    /// Observations in the same context are considered to have negligable relative error between them.
+    /// Observations in the same context are considered to have negligible relative error between them.
     ///
     /// For example:
     ///

@@ -47,6 +47,7 @@ fn generate_scatter(radius: f64, rng: &mut impl Rng) -> impl Iterator<Item = (f6
 ///
 /// This is a needlessly complicated approach, but it does mean that clustered positions can
 /// be created entirely lazily, with no intermediate memory allocations.
+#[derive(Debug)]
 pub struct ClusteredPositionIter<'a, R: Rng> {
     radius: f64,
     cluster_radius: f64,
