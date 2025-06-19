@@ -120,7 +120,8 @@ pub fn generate_observations(config: &Config) -> Vec<Unique<Observation, Uuid>> 
         clippy::cast_possible_truncation,
         clippy::cast_precision_loss
     )]
-    let num_clusters = (desired_clustered as f64 / usize::from(config.observations_per_cluster) as f64)
+    let num_clusters = (desired_clustered as f64
+        / usize::from(config.observations_per_cluster) as f64)
         .ceil() as usize;
     let actual_clustered = num_clusters * usize::from(config.observations_per_cluster);
 
