@@ -1,5 +1,9 @@
 # Clique Fusion
 
+[![Latest Docs](https://docs.rs/clique-fusion/badge.svg)](https://docs.rs/clique-fusion/)
+[![Continuous integration](https://github.com/danieleades/clique-fusion/actions/workflows/CI.yml/badge.svg)](https://github.com/danieleades/clique-fusion/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/danieleades/clique-fusion/graph/badge.svg?token=4laxho1ik5)](https://codecov.io/gh/danieleades/clique-fusion)
+
 The following library provides an efficient algorithm for 'fusing' multiple observations of objects.
 
 An 'observation' is a discrete measurement of the position of an object, with associated uncertainty.
