@@ -1,0 +1,14 @@
+[licenses]
+confidence-threshold = 1.0
+
+# Allow only permissive licenses so that this crate can be distributed under a permissive (commercial) license.
+allow = ["MIT", "Unicode-3.0", "Apache-2.0"]
+
+# This library is allowed to be GPL-3.0, but none of it's dependencies are!
+exceptions = [{ allow = ["GPL-3.0"], crate = "clique-fusion" }]
+clarify = [
+    { crate = "clique-fusion", expression = "GPL-3.0", license-files = [] },
+]
+
+[advisories]
+ignore = ["RUSTSEC-2024-0436"]  # TODO: remove this when 'paste' dependency is removed upstream

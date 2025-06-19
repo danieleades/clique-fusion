@@ -1,0 +1,9 @@
+{
+  "solution": {
+    "path": "CliqueFusion.sln",
+    "projects": [
+      "src/CliqueFusion/CliqueFusion.csproj",
+      "src/CliqueFusion.Tests/CliqueFusion.Tests.csproj"
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+# Build results
+bin/
+obj/
+
+# User-specific files
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.userprefs
+
+# Mono auto-generated files
+mono_crash.*
+
+# Visual Studio Code settings
+.vscode/
+
+# Rider settings
+.idea/
+
+# Test results
+TestResults/
+*.coverage
+*.coveragexml
+*.vsp
+*.vspx
+*.vspscc
+*.vsmdi
+*.pdb
+
+# Dotnet-specific
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.dbmdl
+*.bak
+*.log
+
+# Dotnet tools and packages
+.nuget/
+*.nupkg
+*.snupkg
+*.nuspec
+
+# Auto-generated files from dotnet-coverage or coverage reports
+coverage/
+coverage-report/
+*.lcov
+*.info
+
+# Build script output (e.g., native FFI libs)
+runtimes/
+
+# Local NuGet source folder (if applicable)
+nupkgs/
+
+# JetBrains Rider caches
+.idea/
+
+# macOS/Linux system files
+.DS_Store
+*.swp
+*~
