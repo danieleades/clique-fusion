@@ -2,7 +2,7 @@ use super::CHI2_2D_CONFIDENCE_95;
 use nalgebra::Matrix2;
 
 /// A covariance matrix, used to represent the positional error ellipse of an observation.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CovarianceMatrix(Matrix2<f64>);
 
 impl CovarianceMatrix {
@@ -157,12 +157,12 @@ impl CovarianceMatrix {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone, Copy)]
 #[error("radius must be >=0.0 (got {0})")]
 pub struct InvalidRadius(f64);
 
 /// The error returned when the given variances do not form a valid covariance matrix
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone, Copy)]
 #[error("not a valid positive semi-definite matrix (xx: {xx}, yy: {yy}, xy: {xy})")]
 pub struct InvalidCovarianceMatrix {
     xx: f64,
