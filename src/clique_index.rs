@@ -36,7 +36,7 @@ where
     #[must_use]
     pub fn from_observations(observations: Vec<Unique<Observation, Id>>, chi2: f64) -> Self {
         let spatial_index = SpatialIndex::from_observations(observations);
-        let compatibility_graph = spatial_index.compatibility_graph(chi2);
+        let compatibility_graph = spatial_index.compatibility_graph(chi2).collect();
         let cliques = find_maximal_cliques(&compatibility_graph);
         Self {
             spatial_index,
@@ -161,5 +161,78 @@ where
     #[must_use]
     pub const fn compatibility_graph(&self) -> &HashMap<Id, HashSet<Id>> {
         &self.compatibility_graph
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use crate::{CHI2_2D_CONFIDENCE_95, CliqueIndex, Observation, Unique};
+
+    #[test]
+    fn simple_cluster() {
+        let observations = vec![
+            Unique {
+                data: Observation::builder(0.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 0,
+            },
+            Unique {
+                data: Observation::builder(0.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 1,
+            },
+            Unique {
+                data: Observation::builder(0.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 2,
+            },
+        ];
+        let index = CliqueIndex::from_observations(observations, CHI2_2D_CONFIDENCE_95);
+
+        let expected = HashMap::from([
+            (0, HashSet::from([1, 2])),
+            (1, HashSet::from([0, 2])),
+            (2, HashSet::from([0, 1])),
+        ]);
+        assert_eq!(index.compatibility_graph(), &expected);
+    }
+
+    #[test]
+    fn no_overlap() {
+        let observations = vec![
+            Unique {
+                data: Observation::builder(10.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 0,
+            },
+            Unique {
+                data: Observation::builder(0.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 1,
+            },
+            Unique {
+                data: Observation::builder(-10.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 2,
+            },
+        ];
+        let index = CliqueIndex::from_observations(observations, CHI2_2D_CONFIDENCE_95);
+
+        let expected = HashMap::from([]);
+        assert_eq!(index.compatibility_graph(), &expected);
     }
 }

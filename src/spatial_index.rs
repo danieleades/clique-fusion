@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use rstar::{AABB, PointDistance, RTree, RTreeObject};
 
@@ -121,20 +121,22 @@ where
     /// The result is an undirected graph represented as an adjacency list, where each node is an
     /// observation ID and edges represent pairs of observations whose error ellipses mutually include
     /// the other's position under the given chi-squared threshold.
-    #[must_use]
-    pub fn compatibility_graph(&self, chi2_threshold: f64) -> HashMap<Id, HashSet<Id>> {
-        let mut graph = HashMap::new();
-
-        for obs in &self.tree {
-            let compatibles = self
+    pub fn compatibility_graph(
+        &self,
+        chi2_threshold: f64,
+    ) -> impl Iterator<Item = (Id, HashSet<Id>)> {
+        self.tree.iter().filter_map(move |obs| {
+            let compatibles: HashSet<_> = self
                 .find_compatible(obs, chi2_threshold)
                 .map(|other| other.id)
-                .collect::<HashSet<_>>();
+                .collect();
 
-            graph.insert(obs.id, compatibles);
-        }
-
-        graph
+            if compatibles.is_empty() {
+                None
+            } else {
+                Some((obs.id, compatibles))
+            }
+        })
     }
 }
 
