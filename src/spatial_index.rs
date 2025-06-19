@@ -44,7 +44,10 @@ impl<Id> Default for SpatialIndex<Id> {
     }
 }
 
-impl<Id> SpatialIndex<Id> where Id: PartialEq {
+impl<Id> SpatialIndex<Id>
+where
+    Id: PartialEq,
+{
     /// Construct a spatial index from an initial list of observations.
     ///
     /// This is significantly faster than inserting observations individually via [`Self::insert`],
@@ -65,10 +68,13 @@ impl<Id> SpatialIndex<Id> where Id: PartialEq {
     /// See also: [`Self::from_observations`] for batch construction.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics in debug builds if an observation with the same ID already exists in the index.
     pub fn insert(&mut self, observation: Unique<Observation, Id>) {
-        debug_assert!(!self.tree.contains(&observation), "attemped to insert duplicate observation");
+        debug_assert!(
+            !self.tree.contains(&observation),
+            "attemped to insert duplicate observation"
+        );
         self.tree.insert(observation);
     }
 }
@@ -269,7 +275,13 @@ mod tests {
     #[should_panic(expected = "attemped to insert duplicate observation")]
     fn disallows_duplicates() {
         let mut spatial_index = SpatialIndex::default();
-        let observation = Unique { data: Observation::builder(0.0, 0.0).circular_95_confidence_error(5.0).unwrap().build(), id: 0 };
+        let observation = Unique {
+            data: Observation::builder(0.0, 0.0)
+                .circular_95_confidence_error(5.0)
+                .unwrap()
+                .build(),
+            id: 0,
+        };
         spatial_index.insert(observation.clone());
         spatial_index.insert(observation);
     }

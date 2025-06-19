@@ -50,7 +50,7 @@ where
     /// and recomputing cliques in the affected subgraph.
     ///
     /// # Panics
-    /// 
+    ///
     /// Panics on debug builds if an observation with the same ID already exists in the index.
     pub fn insert(&mut self, observation: Unique<Observation, Id>) {
         let id = observation.id;
