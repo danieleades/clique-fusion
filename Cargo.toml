@@ -6,6 +6,7 @@ edition = "2024"
 license-file = "LICENSING.md"
 keywords = ["spatial-index", "geo", "coordinates", "fusion", "robotics"]
 categories = ["science::geo", "science::robotics"]
+rust-version = "1.85.1"
 
 [dependencies]
 nalgebra = "0.33.2"
