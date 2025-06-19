@@ -7,6 +7,7 @@ license-file = "LICENSING.md"
 keywords = ["spatial-index", "geo", "coordinates", "fusion", "robotics"]
 categories = ["science::geo", "science::robotics"]
 rust-version = "1.85.1"
+repository = "https://github.com/danieleades/clique-fusion"
 
 [dependencies]
 nalgebra = "0.33.2"
@@ -28,8 +29,11 @@ harness = false
 
 [lints.rust]
 missing_docs = "deny"
+missing_debug_implementations = "deny"
+missing_copy_implementation = "warn"
 
 [lints.clippy]
 all ="deny"
 pedantic = "warn"
 nursery = "warn"
+cargo = "deny"
