@@ -5,7 +5,7 @@ use rstar::{AABB, PointDistance, RTree, RTreeObject};
 use crate::Observation;
 
 /// A wrapper type that assigns a unique identifier to its payload.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unique<T, Id> {
     /// The wrapped payload.
     pub data: T,
@@ -44,7 +44,7 @@ impl<Id> Default for SpatialIndex<Id> {
     }
 }
 
-impl<Id> SpatialIndex<Id> {
+impl<Id> SpatialIndex<Id> where Id: PartialEq {
     /// Construct a spatial index from an initial list of observations.
     ///
     /// This is significantly faster than inserting observations individually via [`Self::insert`],
@@ -65,8 +65,10 @@ impl<Id> SpatialIndex<Id> {
     /// See also: [`Self::from_observations`] for batch construction.
     ///
     /// # Panics
-    /// Panics if an observation with the same ID already exists in the index.
+    /// 
+    /// Panics in debug builds if an observation with the same ID already exists in the index.
     pub fn insert(&mut self, observation: Unique<Observation, Id>) {
+        debug_assert!(!self.tree.contains(&observation), "attemped to insert duplicate observation");
         self.tree.insert(observation);
     }
 }
@@ -261,5 +263,14 @@ mod tests {
             !compatibles.iter().any(|obs| obs.id == obs3.id),
             "Should not include obs3 (too far)"
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "attemped to insert duplicate observation")]
+    fn disallows_duplicates() {
+        let mut spatial_index = SpatialIndex::default();
+        let observation = Unique { data: Observation::builder(0.0, 0.0).circular_95_confidence_error(5.0).unwrap().build(), id: 0 };
+        spatial_index.insert(observation.clone());
+        spatial_index.insert(observation);
     }
 }

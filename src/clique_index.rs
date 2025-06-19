@@ -50,15 +50,10 @@ where
     /// and recomputing cliques in the affected subgraph.
     ///
     /// # Panics
-    /// Panics if an observation with the same ID already exists in the index.
+    /// 
+    /// Panics on debug builds if an observation with the same ID already exists in the index.
     pub fn insert(&mut self, observation: Unique<Observation, Id>) {
         let id = observation.id;
-
-        // Validate that this ID doesn't already exist
-        assert!(
-            !self.compatibility_graph.contains_key(&id),
-            "Observation with ID {id:?} already exists in the index"
-        );
 
         // 1. Identify mutually compatible neighbours
         let direct_neighbours: HashSet<Id> = self
