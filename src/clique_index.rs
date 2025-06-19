@@ -50,15 +50,10 @@ where
     /// and recomputing cliques in the affected subgraph.
     ///
     /// # Panics
-    /// Panics if an observation with the same ID already exists in the index.
+    ///
+    /// Panics on debug builds if an observation with the same ID already exists in the index.
     pub fn insert(&mut self, observation: Unique<Observation, Id>) {
         let id = observation.id;
-
-        // Validate that this ID doesn't already exist
-        assert!(
-            !self.compatibility_graph.contains_key(&id),
-            "Observation with ID {id:?} already exists in the index"
-        );
 
         // 1. Identify mutually compatible neighbours
         let direct_neighbours: HashSet<Id> = self
@@ -70,32 +65,38 @@ where
         // 2. Insert into spatial index
         self.spatial_index.insert(observation);
 
-        // 3. Update compatibility graph with new node and edges
-        self.compatibility_graph
-            .insert(id, direct_neighbours.clone());
-        for &neighbour in &direct_neighbours {
+        // 3. Update compatibility graph and recompute cliques only if there are connections
+        // If the new node has connections, update the compatibility graph and recompute cliques
+        if !direct_neighbours.is_empty() {
+            // Add the new node to the graph with its connections (sparse approach)
             self.compatibility_graph
-                .entry(neighbour)
-                .or_default()
-                .insert(id);
+                .insert(id, direct_neighbours.clone());
+
+            // Add the new node to all its neighbors' adjacency lists
+            for &neighbour in &direct_neighbours {
+                self.compatibility_graph
+                    .entry(neighbour)
+                    .or_default()
+                    .insert(id);
+            }
+
+            // Calculate affected region: new node + its direct neighbors (1-hop)
+            // This is sufficient because:
+            // - New node can only participate in cliques with its direct neighbors
+            // - Only cliques containing the new node's neighbors can be affected
+            // - Mutual compatibility ensures no "action at a distance" effects
+            let mut affected = direct_neighbours;
+            affected.insert(id); // New node is guaranteed to be in the graph at this point
+
+            // Extract subgraph containing only affected nodes and their internal connections
+            let subgraph = self.extract_subgraph(&affected).collect();
+
+            // Recompute cliques in the affected subgraph
+            let new_cliques = find_maximal_cliques(&subgraph);
+
+            // Update global clique set: remove stale cliques and add new ones
+            self.update_cliques(&affected, new_cliques);
         }
-
-        // 4. Calculate affected region: new node + its direct neighbors (1-hop)
-        // This is sufficient because:
-        // - New node can only participate in cliques with its direct neighbors
-        // - Only cliques containing the new node's neighbors can be affected
-        // - Mutual compatibility ensures no "action at a distance" effects
-        let mut affected = direct_neighbours;
-        affected.insert(id);
-
-        // 5. Extract subgraph containing only affected nodes and their internal connections
-        let subgraph = self.extract_subgraph(&affected).collect();
-
-        // 6. Recompute cliques in the affected subgraph
-        let new_cliques = find_maximal_cliques(&subgraph);
-
-        // 7. Update global clique set: remove stale cliques and add new ones
-        self.update_cliques(&affected, new_cliques);
     }
 
     /// Extract subgraph containing only the specified nodes and edges between them
@@ -234,5 +235,57 @@ mod tests {
 
         let expected = HashMap::from([]);
         assert_eq!(index.compatibility_graph(), &expected);
+    }
+
+    #[test]
+    fn insert_equivalence() {
+        let observations = vec![
+            Unique {
+                data: Observation::builder(10.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 0,
+            },
+            Unique {
+                data: Observation::builder(0.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 1,
+            },
+            Unique {
+                data: Observation::builder(-10.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 2,
+            },
+            Unique {
+                data: Observation::builder(10.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 3,
+            },
+            Unique {
+                data: Observation::builder(10.0, 0.0)
+                    .circular_95_confidence_error(5.0)
+                    .unwrap()
+                    .build(),
+                id: 4,
+            },
+        ];
+
+        let index1 = CliqueIndex::from_observations(observations.clone(), CHI2_2D_CONFIDENCE_95);
+
+        let mut index2 = CliqueIndex::new(CHI2_2D_CONFIDENCE_95);
+
+        for obs in observations {
+            index2.insert(obs);
+        }
+
+        assert_eq!(index1.cliques, index2.cliques);
+        assert_eq!(index1.compatibility_graph, index2.compatibility_graph);
     }
 }
