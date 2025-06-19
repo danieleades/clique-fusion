@@ -1,0 +1,13 @@
+[licenses]
+confidence-threshold = 1.0
+
+allow = ["MIT", "Unicode-3.0", "Apache-2.0"]
+
+exceptions = [{ allow = ["GPL-3.0"], crate = "clique-fusion" }]
+
+clarify = [
+    { crate = "clique-fusion", expression = "GPL-3.0", license-files = [] },
+]
+
+[advisories]
+ignore = ["RUSTSEC-2024-0436"]  # TODO: remove this when 'paste' dependency is removed upstream

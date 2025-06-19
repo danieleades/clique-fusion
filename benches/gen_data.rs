@@ -14,8 +14,8 @@ pub struct Config {
     pub cluster_pct: f64,
     /// Maximum radius of each cluster in meters.
     pub cluster_size: f64,
-    /// Number of contacts per cluster.
-    pub contacts_per_cluster: NonZeroUsize,
+    /// Number of observations per cluster.
+    pub observations_per_cluster: NonZeroUsize,
     /// Total number of observations to generate.
     pub total_count: usize,
     /// The circular positional error of each observation's position in metres (95% confidence interval)
@@ -120,9 +120,10 @@ pub fn generate_observations(config: &Config) -> Vec<Unique<Observation, Uuid>> 
         clippy::cast_possible_truncation,
         clippy::cast_precision_loss
     )]
-    let num_clusters = (desired_clustered as f64 / usize::from(config.contacts_per_cluster) as f64)
+    let num_clusters = (desired_clustered as f64
+        / usize::from(config.observations_per_cluster) as f64)
         .ceil() as usize;
-    let actual_clustered = num_clusters * usize::from(config.contacts_per_cluster);
+    let actual_clustered = num_clusters * usize::from(config.observations_per_cluster);
 
     // If we calculated more clustered than total, adjust
     let final_clustered = actual_clustered.min(config.total_count);
@@ -134,7 +135,7 @@ pub fn generate_observations(config: &Config) -> Vec<Unique<Observation, Uuid>> 
     for (x, y) in ClusteredPositionIter::new(
         config.spread,
         config.cluster_size,
-        config.contacts_per_cluster,
+        config.observations_per_cluster,
         &mut rng,
     )
     .take(final_clustered)

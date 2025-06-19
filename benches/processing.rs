@@ -19,7 +19,7 @@ fn five_pct_clustered() -> Vec<Unique<Observation, Uuid>> {
         cluster_size: 4.0,
         total_count: 5000,
         error_radius: 5.0,
-        contacts_per_cluster: NonZeroUsize::new(4).unwrap(),
+        observations_per_cluster: NonZeroUsize::new(4).unwrap(),
         random_seed: 12345,
         cluster_pct: 5.0,
     };
