@@ -115,21 +115,21 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
+      - name: Check formatting
+        run: dotnet format --verify-no-changes --verbosity diagnostic
+
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build --no-restore --warnaserror --configuration Release
 
       - name: Run unit tests
         run: dotnet test --no-restore --configuration Release
 
+      - name: Pack CliqueFusion
+        run: dotnet pack src/CliqueFusion --output ./csharp/nupkgs --configuration Release
+
       - name: Run smoke test
         run: dotnet run --project src/CliqueFusion.SmokeTest --configuration Release
 
-      - name: Check formatting
-        run: dotnet format --verify-no-changes --verbosity diagnostic
-
-      - name: Lint build
-        run: dotnet build --no-restore --warnaserror
-  
 
   # Automatically merge if it's a Dependabot PR that passes the build
   dependabot:
