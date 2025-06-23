@@ -101,6 +101,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross (Rust cross-compilation tool)
+        run: cargo install cross
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
