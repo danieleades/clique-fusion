@@ -45,7 +45,7 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
       - uses: taiki-e/install-action@cargo-hack
       - run: cargo hack --no-dev-deps --rust-version check --all
 
@@ -59,81 +59,68 @@ jobs:
   cargo-deny:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
 
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout source
-        uses: actions/checkout@v4
-
-      - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@nightly
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
         with:
           components: llvm-tools-preview
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Run llvm-cov
-        run: cargo llvm-cov --all-features --doctests --workspace --lcov --output-path lcov.info
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - run: cargo llvm-cov --all-features --doctests --workspace --lcov --output-path lcov.info
+      - uses: codecov/codecov-action@v5
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
 
-  csharp:
-    name: C# CI
+  csharp-linux:
+    name: C# Build & Test (Linux)
     needs: [test, format, lint, msrv, docs, cargo-deny, coverage]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: csharp
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install nightly toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cross (Rust cross-compilation tool)
-        run: cargo install cross
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cross
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - run: dotnet restore
+      - run: dotnet format --verify-no-changes --verbosity diagnostic
+      - run: dotnet build --no-restore --warnaserror --configuration Release
+      - run: dotnet test --no-restore --configuration Release
+      - run: dotnet pack src/CliqueFusion --output ./nupkgs --configuration Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packed-nupkg
+          path: csharp/nupkgs
 
-      - name: Restore dependencies
-        run: dotnet restore
+  csharp-windows:
+    name: C# Smoke Test (Windows)
+    needs: csharp-linux
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: csharp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: packed-nupkg
+          path: csharp/nupkgs
+      - run: dotnet run --project src/CliqueFusion.SmokeTest --configuration Release
 
-      - name: Check formatting
-        run: dotnet format --verify-no-changes --verbosity diagnostic
-
-      - name: Build
-        run: dotnet build --no-restore --warnaserror --configuration Release
-
-      - name: Run unit tests
-        run: dotnet test --no-restore --configuration Release
-
-      - name: Pack CliqueFusion
-        run: dotnet pack src/CliqueFusion --output ./nupkgs --configuration Release
-
-      - name: Run smoke test
-        run: dotnet run --project src/CliqueFusion.SmokeTest --configuration Release
-
-
-  # Automatically merge if it's a Dependabot PR that passes the build
   dependabot:
-    needs: [test, format, lint, msrv, docs, cargo-deny, coverage, csharp]
+    needs: [test, format, lint, msrv, docs, cargo-deny, coverage, csharp-linux, csharp-windows]
     permissions:
       contents: write
       pull-requests: write
@@ -143,5 +130,5 @@ jobs:
       - name: Enable auto-merge for Dependabot PRs
         run: gh pr merge --auto --merge "$PR_URL"
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
