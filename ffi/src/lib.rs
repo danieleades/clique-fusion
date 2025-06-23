@@ -23,7 +23,6 @@ type UuidC = [u8; 16];
 
 #[derive(Debug, Clone)]
 #[repr(C)]
-
 pub struct ObservationC {
     id: UuidC,
     x: f64,
@@ -257,5 +256,81 @@ pub unsafe extern "C" fn CliqueIndex_free(ptr: *mut CliqueIndex<Uuid>) {
         unsafe {
             drop(Box::from_raw(ptr));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clique_fusion::Observation;
+    use uuid::Uuid;
+
+    fn sample_uuid() -> Uuid {
+        Uuid::parse_str("12345678-1234-5678-1234-567812345678").unwrap()
+    }
+
+    fn nil_uuid() -> UuidC {
+        [0u8; 16]
+    }
+
+    fn uuidc_from_uuid(uuid: Uuid) -> UuidC {
+        *uuid.as_bytes()
+    }
+
+    #[test]
+    fn test_parse_uuid_some() {
+        let uuid = sample_uuid();
+        let parsed = parse_uuid(uuidc_from_uuid(uuid));
+        assert_eq!(parsed, Some(uuid));
+    }
+
+    #[test]
+    fn test_parse_uuid_none() {
+        let parsed = parse_uuid(nil_uuid());
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn test_observationc_to_unique_without_context() {
+        let id = sample_uuid();
+        let obs_c = ObservationC {
+            id: uuidc_from_uuid(id),
+            x: 1.0,
+            y: 2.0,
+            cov_xx: 0.1,
+            cov_xy: 0.01,
+            cov_yy: 0.2,
+            context: nil_uuid(),
+        };
+
+        let unique: Unique<Observation, Uuid> = obs_c.clone().into();
+
+        assert_eq!(unique.id, id);
+        assert_eq!(unique.data.x(), 1.0);
+        assert_eq!(unique.data.y(), 2.0);
+        assert_eq!(unique.data.context(), None);
+    }
+
+    #[test]
+    fn test_observationc_to_unique_with_context() {
+        let id = sample_uuid();
+        let ctx = Uuid::parse_str("abcdefab-cdef-abcd-efab-cdefabcdefab").unwrap();
+
+        let obs_c = ObservationC {
+            id: uuidc_from_uuid(id),
+            x: 3.0,
+            y: 4.0,
+            cov_xx: 0.3,
+            cov_xy: 0.02,
+            cov_yy: 0.4,
+            context: uuidc_from_uuid(ctx),
+        };
+
+        let unique: Unique<Observation, Uuid> = obs_c.clone().into();
+
+        assert_eq!(unique.id, id);
+        assert_eq!(unique.data.x(), 3.0);
+        assert_eq!(unique.data.y(), 4.0);
+        assert_eq!(unique.data.context(), Some(ctx));
     }
 }
