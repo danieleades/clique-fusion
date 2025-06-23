@@ -33,7 +33,7 @@ where
     ///
     /// Constructing an index from a list of observations up front is much faster than adding them
     /// one at a time to an existing index.
-    /// 
+    ///
     /// Note that observations in the same 'context' are never merged into cliques with each other, since
     /// they are assumed to have negligible relative error between them, and hence are distinguishable as
     /// separate objects.
@@ -52,7 +52,7 @@ where
 
     /// Inserts a new observation, updating the spatial index, compatibility graph,
     /// and recomputing cliques in the affected subgraph.
-    /// 
+    ///
     /// Note that observations in the same 'context' are never merged into cliques with each other, since
     /// they are assumed to have negligible relative error between them, and hence are distinguishable as
     /// separate objects.

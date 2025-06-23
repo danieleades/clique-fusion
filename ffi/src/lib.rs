@@ -1,4 +1,7 @@
-use clique_fusion::{CliqueIndex, CovarianceMatrix, Observation, Unique, CHI2_2D_CONFIDENCE_90, CHI2_2D_CONFIDENCE_95, CHI2_2D_CONFIDENCE_99};
+use clique_fusion::{
+    CHI2_2D_CONFIDENCE_90, CHI2_2D_CONFIDENCE_95, CHI2_2D_CONFIDENCE_99, CliqueIndex,
+    CovarianceMatrix, Observation, Unique,
+};
 use uuid::Uuid;
 
 #[unsafe(no_mangle)]
@@ -102,7 +105,7 @@ pub unsafe extern "C" fn CliqueIndex_from_observations(
 
 #[unsafe(no_mangle)]
 /// Insert an observation into an existing [`CliqueIndex`].
-/// 
+///
 /// Note that it is quicker to create a [`CliqueIndex`] from a batch of observations using
 /// [`CliqueIndex_from_observations`], but this function is useful for incrementally adding observations.
 ///
@@ -181,7 +184,8 @@ pub unsafe extern "C" fn CliqueSetC_free(ptr: *mut CliqueSetC) {
     let boxed = unsafe { Box::from_raw(ptr) };
 
     // Fully reconstruct the outer Vec<CliqueC>
-    let cliques_vec = unsafe { Vec::from_raw_parts(boxed.cliques as *mut CliqueC, boxed.len, boxed.len) };
+    let cliques_vec =
+        unsafe { Vec::from_raw_parts(boxed.cliques as *mut CliqueC, boxed.len, boxed.len) };
 
     for clique in cliques_vec {
         // Reconstruct and drop the inner UUID arrays
@@ -190,7 +194,6 @@ pub unsafe extern "C" fn CliqueSetC_free(ptr: *mut CliqueSetC) {
 
     // `boxed` is dropped here, releasing CliqueSetC itself
 }
-
 
 /// Returns the current set of maximal cliques from the [`CliqueIndex`].
 ///
@@ -208,9 +211,7 @@ pub unsafe extern "C" fn CliqueSetC_free(ptr: *mut CliqueSetC) {
 ///
 /// If `ptr` is null, this function returns a null pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn CliqueIndex_cliques(
-    ptr: *const CliqueIndex<Uuid>,
-) -> *mut CliqueSetC {
+pub unsafe extern "C" fn CliqueIndex_cliques(ptr: *const CliqueIndex<Uuid>) -> *mut CliqueSetC {
     if ptr.is_null() {
         return std::ptr::null_mut();
     }
@@ -244,7 +245,6 @@ pub unsafe extern "C" fn CliqueIndex_cliques(
 
     Box::into_raw(result)
 }
-
 
 /// Free the memory associated with a [`CliqueIndex`].
 ///
