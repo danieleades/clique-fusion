@@ -54,18 +54,16 @@ fn test_create_insert_cliques_free() {
     let clique_set = unsafe { &*clique_set_ptr };
     let cliques: &[CliqueC] = unsafe { slice::from_raw_parts(clique_set.cliques, clique_set.len) };
 
-println!("Number of cliques returned: {}", cliques.len());
+    println!("Number of cliques returned: {}", cliques.len());
 
-for (i, clique) in cliques.iter().enumerate() {
-    println!("Clique {i} length: {}", clique.len);
-    let ids: &[[u8; 16]] = unsafe {
-        slice::from_raw_parts(clique.uuids, clique.len)
-    };
-    for uuid_bytes in ids {
-        let uuid = Uuid::from_bytes(*uuid_bytes);
-        println!(" - {:?}", uuid);
+    for (i, clique) in cliques.iter().enumerate() {
+        println!("Clique {i} length: {}", clique.len);
+        let ids: &[[u8; 16]] = unsafe { slice::from_raw_parts(clique.uuids, clique.len) };
+        for uuid_bytes in ids {
+            let uuid = Uuid::from_bytes(*uuid_bytes);
+            println!(" - {:?}", uuid);
+        }
     }
-}
 
     // Should be 1 clique: [id1, id2] (singular cliques are not returned)
     assert_eq!(cliques.len(), 1);
@@ -81,7 +79,7 @@ for (i, clique) in cliques.iter().enumerate() {
 
     assert!(all_uuids.contains(&id1));
     assert!(all_uuids.contains(&id2));
-    assert!(!all_uuids.contains(&id3));  // not present- singleton clique
+    assert!(!all_uuids.contains(&id3)); // not present- singleton clique
 
     unsafe {
         CliqueSetC_free(clique_set_ptr);
