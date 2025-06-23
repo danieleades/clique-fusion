@@ -125,7 +125,7 @@ jobs:
         run: dotnet test --no-restore --configuration Release
 
       - name: Pack CliqueFusion
-        run: dotnet pack src/CliqueFusion --output ./csharp/nupkgs --configuration Release
+        run: dotnet pack src/CliqueFusion --output ./nupkgs --configuration Release
 
       - name: Run smoke test
         run: dotnet run --project src/CliqueFusion.SmokeTest --configuration Release
