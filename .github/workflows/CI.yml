@@ -96,6 +96,7 @@ jobs:
       - run: dotnet build --no-restore --warnaserror --configuration Release
       - run: dotnet test --no-restore --configuration Release
       - run: dotnet pack src/CliqueFusion --output ./nupkgs --configuration Release
+      - run: dotnet run --project src/CliqueFusion.SmokeTest --configuration Release
       - uses: actions/upload-artifact@v4
         with:
           name: packed-nupkg
