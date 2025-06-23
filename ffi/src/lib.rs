@@ -24,14 +24,14 @@ type UuidC = [u8; 16];
 #[derive(Debug, Clone)]
 #[repr(C)]
 pub struct ObservationC {
-    id: UuidC,
-    x: f64,
-    y: f64,
-    cov_xx: f64,
-    cov_xy: f64,
-    cov_yy: f64,
+    pub id: UuidC,
+    pub x: f64,
+    pub y: f64,
+    pub cov_xx: f64,
+    pub cov_xy: f64,
+    pub cov_yy: f64,
     /// A Uuid. a null uuid is equivalent to providing no context.
-    context: UuidC,
+    pub context: UuidC,
 }
 
 fn parse_uuid(bytes: UuidC) -> Option<Uuid> {
