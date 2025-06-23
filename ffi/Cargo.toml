@@ -1,0 +1,17 @@
+[package]
+name = "clique-fusion-ffi"
+description = "foreign function interface for the 'clique-fusion' library"
+version = "0.1.0"
+edition.workspace = true
+license-file.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+clique-fusion = { version = "0.1.1", path = ".." }
+uuid = "1.17.0"

@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <Authors>Daniel Eades</Authors>
+    <Copyright>Copyright © 2025 Daniel Eades</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+  </PropertyGroup>
+</Project>
