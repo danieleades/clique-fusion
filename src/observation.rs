@@ -189,21 +189,21 @@ impl Observation {
         ObservationBuilder::new(x, y)
     }
 
-    /// Check if the positions of two observations are mutually compatible within a given threshold.
+    /// Check if the positions of two observations are compatible within a given threshold.
     ///
     /// Uses the [Mahalanobis distance](https://en.wikipedia.org/wiki/Mahalanobis_distance) under each observation's covariance,
     /// symmetrically.
     ///
     /// The threshold is the 2D Chi squared threshold
     #[must_use]
-    pub fn is_mutually_compatible_with(&self, other: &Self, chi2_threshold: f64) -> bool {
+    pub fn is_compatible_with(&self, other: &Self, chi2_threshold: f64) -> bool {
         let delta = self.position - other.position;
         let delta_vec = Vector2::new(delta.x, delta.y);
 
         let d1 = mahalanobis_squared(delta_vec, other.error);
         let d2 = mahalanobis_squared(-delta_vec, self.error);
 
-        d1 <= chi2_threshold && d2 <= chi2_threshold
+        d1 <= chi2_threshold || d2 <= chi2_threshold
     }
 
     /// The maximum radius of any other observation that could be compatible with this one (within the confidence interval defined by the CHI2 value).
@@ -259,7 +259,7 @@ mod tests {
         let b = Observation::builder(1.0, 1.0).error(cov).build();
 
         // Mahalanobis distance squared should be 2 in both directions under identity covariance
-        assert!(a.is_mutually_compatible_with(&b, CHI2_2D_CONFIDENCE_95));
+        assert!(a.is_compatible_with(&b, CHI2_2D_CONFIDENCE_95));
     }
 
     #[test]
@@ -268,7 +268,7 @@ mod tests {
         let a = Observation::builder(0.0, 0.0).error(cov).build();
         let b = Observation::builder(5.0, 5.0).error(cov).build();
 
-        assert!(!a.is_mutually_compatible_with(&b, CHI2_2D_CONFIDENCE_95));
+        assert!(!a.is_compatible_with(&b, CHI2_2D_CONFIDENCE_95));
     }
 
     #[test]
@@ -278,8 +278,8 @@ mod tests {
         let obs1 = Observation::builder(0.0, 0.0).error(cov).build();
         let obs2 = Observation::builder(1.0, 0.0).error(cov).build();
 
-        let a_to_b = obs1.is_mutually_compatible_with(&obs2, CHI2_2D_CONFIDENCE_95);
-        let b_to_a = obs2.is_mutually_compatible_with(&obs1, CHI2_2D_CONFIDENCE_95);
+        let a_to_b = obs1.is_compatible_with(&obs2, CHI2_2D_CONFIDENCE_95);
+        let b_to_a = obs2.is_compatible_with(&obs1, CHI2_2D_CONFIDENCE_95);
 
         assert_eq!(a_to_b, b_to_a); // function should be symmetric
     }

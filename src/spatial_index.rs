@@ -115,7 +115,7 @@ impl<Id> SpatialIndex<Id> {
             })
             .filter(move |obs| {
                 obs.data
-                    .is_mutually_compatible_with(&query.data, chi2_threshold)
+                    .is_compatible_with(&query.data, chi2_threshold)
             })
     }
 }

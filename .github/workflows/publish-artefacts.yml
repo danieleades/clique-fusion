@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross (if used by build-native.sh)
+        run: cargo install cross
+
+      - name: Run build-native.sh (Linux)
+        working-directory: csharp
+        run: ./build-native.sh
+
+      - name: Upload Linux FFI artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            target/x86_64-unknown-linux-gnu/release/libclique_fusion_ffi.so
+            target/x86_64-pc-windows-msvc/release/clique_fusion_ffi.dll
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross
+        shell: bash
+        run: cargo install cross
+
+      - name: Run build-native.sh (Windows)
+        shell: bash
+        run: ./build-native.sh
+
+      - name: Upload Windows FFI artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            target/x86_64-pc-windows-msvc/release/clique_fusion_ffi.dll
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-nuget:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore and build C#
+        run: |
+          dotnet restore
+          dotnet build -c Release
+          dotnet pack -c Release -o out
+
+      - name: Upload NuGet package to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: out/*.nupkg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
