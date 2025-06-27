@@ -244,7 +244,11 @@ impl Observation {
     /// - `chi2_threshold`: Chi-squared threshold for compatibility (e.g., 5.991 for 95% confidence in 2D)
     /// - `max_other_variance`: Assumed upper bound on the largest eigenvalue of the candidate observation's covariance
     #[must_use]
-    pub(crate) fn max_compatibility_radius(&self, chi2_threshold: f64, max_other_variance: f64) -> f64 {
+    pub(crate) fn max_compatibility_radius(
+        &self,
+        chi2_threshold: f64,
+        max_other_variance: f64,
+    ) -> f64 {
         let combined_max_variance = self.error.max_variance() + max_other_variance;
         (chi2_threshold * combined_max_variance).sqrt()
     }
