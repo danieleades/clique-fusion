@@ -1,0 +1,6 @@
+[workspace]
+
+[[package]]
+name = "clique-fusion-ffi"
+# This is only built locally and bundled with the C# bindings
+release = false
