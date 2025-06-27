@@ -1,6 +1,8 @@
 # Licensing
 
-Clique Fusion is available under two licensing options:
+These licensing terms apply to all source code in this repository, including the Rust core and the C# bindings under `csharp/`.
+
+This project is available under two licensing options:
 
 ## Option 1: GNU General Public License v3.0 (Default)
 

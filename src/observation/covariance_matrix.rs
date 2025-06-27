@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use super::CHI2_2D_CONFIDENCE_95;
 use nalgebra::Matrix2;
 
@@ -152,7 +154,7 @@ impl CovarianceMatrix {
 
         Some(
             svd.pseudo_inverse(1e-12)
-                .expect("unable to calculate pseudoinverse"),
+                .expect("unable to calculate pseudo-inverse"),
         )
     }
 }
@@ -173,6 +175,14 @@ pub struct InvalidCovarianceMatrix {
 impl From<CovarianceMatrix> for Matrix2<f64> {
     fn from(covariance_matrix: CovarianceMatrix) -> Self {
         covariance_matrix.0
+    }
+}
+
+impl Add for CovarianceMatrix {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self(self.0 + other.0)
     }
 }
 
