@@ -66,13 +66,17 @@ This library supports two usage modes:
 
 ## 📌 Use Cases
 
-- Sensor fusion for AUV or UUV mapping
+- Sensor fusion for autonomous mapping
 - Multi-pass object detection and deduplication
-- ATR / mine-like contact aggregation
-- Post-mission analysis and object confirmation
 - Observation deduplication in spatial databases
 
 ---
+
+## Bindings
+
+This library provides C# bindings for easy integration with .NET applications.
+
+See the [C# bindings contributing guide](./csharp/CONTRIBUTING.md) and [the C# bindings readme](./csharp/src/CliqueFusion/README.md) for details.
 
 ## 📜 Licensing
 
