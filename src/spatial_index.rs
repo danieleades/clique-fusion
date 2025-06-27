@@ -35,12 +35,30 @@ impl<Id> PointDistance for Unique<Observation, Id> {
 #[derive(Debug)]
 pub struct SpatialIndex<Id> {
     tree: RTree<Unique<Observation, Id>>,
+
+    /// The maximum variance of all observations in the index.
+    ///
+    /// This is used to determine the search radius needed to guarantee that all possible
+    /// compatible neighbours have been considered when searching for neighbours.
+    ///
+    /// TODO: this could be optimised further by:
+    ///
+    /// - using a heap to track the variances in order
+    /// - searching in descending order of variance
+    /// - popping elements from the heap as they are searched
+    /// - shrinking the search radius to match the updated maximum variance as you go
+    ///
+    /// benchmarking on large, representative datasets needed to determine whether this is worth it!
+    max_variance: f64,
 }
 
 impl<Id> Default for SpatialIndex<Id> {
     fn default() -> Self {
         let tree = RTree::default();
-        Self { tree }
+        Self {
+            tree,
+            max_variance: 0.0,
+        }
     }
 }
 
@@ -56,8 +74,13 @@ where
     /// See also: [`Self::insert`] for incremental use cases.
     #[must_use]
     pub fn from_observations(observations: Vec<Unique<Observation, Id>>) -> Self {
+        let max_variance = observations
+            .iter()
+            .map(|obs| obs.data.error_covariance().max_variance())
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(0.0);
         let tree = RTree::bulk_load(observations);
-        Self { tree }
+        Self { tree, max_variance }
     }
 
     /// Insert a single observation into the spatial index.
@@ -73,8 +96,14 @@ where
     pub fn insert(&mut self, observation: Unique<Observation, Id>) {
         debug_assert!(
             !self.tree.contains(&observation),
-            "attemped to insert duplicate observation"
+            "attempted to insert duplicate observation"
         );
+
+        // Update the maximum variance
+        self.max_variance = self
+            .max_variance
+            .max(observation.data.error_covariance().max_variance());
+
         self.tree.insert(observation);
     }
 }
@@ -101,7 +130,9 @@ impl<Id> SpatialIndex<Id> {
     where
         Id: PartialEq,
     {
-        let radius = query.data.max_compatibility_radius(chi2_threshold);
+        let radius = query
+            .data
+            .max_compatibility_radius(chi2_threshold, self.max_variance);
         let p = query.data.position();
 
         self.tree
@@ -272,7 +303,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "attemped to insert duplicate observation")]
+    #[should_panic(expected = "attempted to insert duplicate observation")]
     fn disallows_duplicates() {
         let mut spatial_index = SpatialIndex::default();
         let observation = Unique {

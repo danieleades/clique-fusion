@@ -189,29 +189,64 @@ impl Observation {
         ObservationBuilder::new(x, y)
     }
 
-    /// Check if the positions of two observations are compatible within a given threshold.
+    /// Determines whether two observations are statistically compatible under the assumption
+    /// that they represent independent measurements of the same underlying object.
     ///
-    /// Uses the [Mahalanobis distance](https://en.wikipedia.org/wiki/Mahalanobis_distance) under each observation's covariance,
-    /// symmetrically.
+    /// This method computes the squared Mahalanobis distance between the two observation positions,
+    /// using the **sum of their covariance matrices** as the effective uncertainty model.
     ///
-    /// The threshold is the 2D Chi squared threshold
+    /// This is statistically optimal for the case where each observation is modelled as a 2D
+    /// Gaussian distribution with independent noise, and you're testing the hypothesis that both
+    /// were drawn from the same true (but unknown) location.
+    ///
+    /// The combined covariance models the uncertainty in the difference between the two observations:
+    ///     Cov[A − B] = Cov[A] + Cov[B]
+    ///
+    /// The Mahalanobis distance is then:
+    ///     d² = (A − B)ᵀ ⋅ (Σ_A + Σ_B)⁻¹ ⋅ (A − B)
+    ///
+    /// If this distance is less than or equal to the given chi-squared threshold (typically based
+    /// on 2 degrees of freedom for 2D), the observations are considered compatible.
+    ///
+    /// # Parameters
+    /// - `other`: The observation to compare against.
+    /// - `chi2_threshold`: The chi-squared threshold corresponding to the desired confidence level
+    ///   (e.g., 5.991 for 95% confidence in 2D).
+    ///
+    /// # Returns
+    /// `true` if the squared Mahalanobis distance between the observations is less than or equal
+    /// to the threshold, indicating statistical compatibility; otherwise `false`.
+    ///
+    /// # See also
+    /// - [Mahalanobis distance](https://en.wikipedia.org/wiki/Mahalanobis_distance)
+    /// - [Chi-squared distribution](https://en.wikipedia.org/wiki/Chi-squared_distribution)
     #[must_use]
     pub fn is_compatible_with(&self, other: &Self, chi2_threshold: f64) -> bool {
         let delta = self.position - other.position;
         let delta_vec = Vector2::new(delta.x, delta.y);
 
-        let d1 = mahalanobis_squared(delta_vec, other.error);
-        let d2 = mahalanobis_squared(-delta_vec, self.error);
+        let combined_covariance = self.error + other.error;
 
-        d1 <= chi2_threshold || d2 <= chi2_threshold
+        let d2 = mahalanobis_squared(delta_vec, combined_covariance);
+        d2 <= chi2_threshold
     }
 
-    /// The maximum radius of any other observation that could be compatible with this one (within the confidence interval defined by the CHI2 value).
+    /// Computes a conservative maximum radius for spatial filtering to identify potentially
+    /// compatible observations under the statistically optimal compatibility test.
     ///
-    /// This is a circular radius the size of the maximum eigenvalue of the covariance matrix.
+    /// This radius corresponds to the maximum Mahalanobis distance consistent with the given chi-squared
+    /// threshold, using the worst-case assumption about the other observation's error.
+    ///
+    /// The method assumes that the other observation's maximum variance does not exceed `max_other_variance`.
+    /// The resulting radius ensures that no compatible observation is missed during spatial indexing.
+    ///
+    /// # Parameters
+    /// - `chi2_threshold`: Chi-squared threshold for compatibility (e.g., 5.991 for 95% confidence in 2D)
+    /// - `max_other_variance`: Assumed upper bound on the largest eigenvalue of the candidate observation's covariance
     #[must_use]
-    pub fn max_compatibility_radius(&self, chi2_threshold: f64) -> f64 {
-        (chi2_threshold * self.error.max_variance()).sqrt()
+    pub fn max_compatibility_radius(&self, chi2_threshold: f64, max_other_variance: f64) -> f64 {
+        let combined_max_variance = self.error.max_variance() + max_other_variance;
+        (chi2_threshold * combined_max_variance).sqrt()
     }
 }
 
