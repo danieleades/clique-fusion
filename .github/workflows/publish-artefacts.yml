@@ -22,7 +22,7 @@ jobs:
         run: ./build-native.sh
 
       - name: Upload Linux FFI artifact
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             target/x86_64-unknown-linux-gnu/release/libclique_fusion_ffi.so
@@ -48,7 +48,7 @@ jobs:
         run: ./build-native.sh
 
       - name: Upload Windows FFI artifact
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             target/x86_64-pc-windows-msvc/release/clique_fusion_ffi.dll
@@ -73,7 +73,7 @@ jobs:
           dotnet pack -c Release -o out
 
       - name: Upload NuGet package to GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: out/*.nupkg
         env:
