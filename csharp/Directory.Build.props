@@ -1,7 +1,17 @@
 <Project>
   <PropertyGroup>
     <Authors>Daniel Eades</Authors>
-    <Copyright>Copyright © 2025 Daniel Eades</Copyright>
+    <Copyright>Copyright (c) Daniel Eades. All rights reserved.</Copyright>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors>$(WarningsAsErrors);SA*</WarningsAsErrors>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.435" PrivateAssets="none" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="8.0.0" PrivateAssets="all" />
+    <AdditionalFiles Include="$(SolutionDir)stylecop.json" />
+  </ItemGroup>
 </Project>

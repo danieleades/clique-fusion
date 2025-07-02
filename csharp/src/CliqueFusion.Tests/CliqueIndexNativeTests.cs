@@ -1,24 +1,22 @@
-using System;
-using System.Runtime.InteropServices;
-using Xunit;
-using CliqueFusion.Native;
+// <copyright file="CliqueIndexNativeTests.cs" company="Daniel Eades">
+// Copyright (c) Daniel Eades. All rights reserved.
+// </copyright>
 
 namespace CliqueFusion.Tests
 {
+    using System.Runtime.InteropServices;
+    using CliqueFusion.Native;
+    using Xunit;
+
+    /// <summary>
+    /// Tests for the low-level native FFI (foreign function interface) of the CliqueIndex implementation.
+    /// These tests validate correct memory handling, pointer marshalling, and basic interop behavior.
+    /// </summary>
     public class CliqueIndexNativeTests
     {
-        private static CliqueIndexNative.ObservationC CreateObservation(Guid id, double x, double y, double cov_xx, double cov_xy, double cov_yy, Guid? context = null)
-        {
-            return new CliqueIndexNative.ObservationC(id, x, y, cov_xx, cov_xy, cov_yy, context);
-        }
-
-        private static IntPtr ToNativePointer<T>(T managed) where T : struct
-        {
-            IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf<T>());
-            Marshal.StructureToPtr(managed, ptr, false);
-            return ptr;
-        }
-
+        /// <summary>
+        /// Verifies that an empty index can be created and is non-null.
+        /// </summary>
         [Fact]
         public void CanCreateEmptyIndex()
         {
@@ -27,6 +25,9 @@ namespace CliqueFusion.Tests
             CliqueIndexNative.CliqueIndex_free(index);
         }
 
+        /// <summary>
+        /// Verifies that a single observation can be inserted into the index and cliques can be retrieved.
+        /// </summary>
         [Fact]
         public void CanInsertSingleObservation()
         {
@@ -44,6 +45,10 @@ namespace CliqueFusion.Tests
             Marshal.FreeHGlobal(obsPtr);
         }
 
+        /// <summary>
+        /// Verifies that an index can be created from an array of multiple observations,
+        /// and that the resulting cliques pointer is valid.
+        /// </summary>
         [Fact]
         public void CanCreateIndexFromMultipleObservations()
         {
@@ -53,9 +58,9 @@ namespace CliqueFusion.Tests
 
             int size = Marshal.SizeOf<CliqueIndexNative.ObservationC>();
             IntPtr arrayPtr = Marshal.AllocHGlobal(size * 3);
-            Marshal.StructureToPtr(obs1, arrayPtr + size * 0, false);
-            Marshal.StructureToPtr(obs2, arrayPtr + size * 1, false);
-            Marshal.StructureToPtr(obs3, arrayPtr + size * 2, false);
+            Marshal.StructureToPtr(obs1, arrayPtr + (size * 0), false);
+            Marshal.StructureToPtr(obs2, arrayPtr + (size * 1), false);
+            Marshal.StructureToPtr(obs3, arrayPtr + (size * 2), false);
 
             IntPtr index = CliqueIndexNative.CliqueIndex_from_observations(5.99, arrayPtr, (UIntPtr)3);
             Assert.NotEqual(IntPtr.Zero, index);
@@ -68,18 +73,41 @@ namespace CliqueFusion.Tests
             Marshal.FreeHGlobal(arrayPtr);
         }
 
+        /// <summary>
+        /// Verifies that freeing a null clique set pointer is safe and does not crash.
+        /// </summary>
         [Fact]
         public void FreeingNullCliqueSetDoesNotCrash()
         {
-            // Should be safe (no-op)
             CliqueIndexNative.CliqueSetC_free(IntPtr.Zero);
         }
 
+        /// <summary>
+        /// Verifies that freeing a null index pointer is safe and does not crash.
+        /// </summary>
         [Fact]
         public void FreeingNullIndexDoesNotCrash()
         {
-            // Should be safe (no-op)
             CliqueIndexNative.CliqueIndex_free(IntPtr.Zero);
+        }
+
+        /// <summary>
+        /// Creates a native-compatible observation struct with optional context.
+        /// </summary>
+        private static CliqueIndexNative.ObservationC CreateObservation(Guid id, double x, double y, double cov_xx, double cov_xy, double cov_yy, Guid? context = null)
+        {
+            return new CliqueIndexNative.ObservationC(id, x, y, cov_xx, cov_xy, cov_yy, context);
+        }
+
+        /// <summary>
+        /// Allocates a native pointer for a given struct and copies the managed data to unmanaged memory.
+        /// </summary>
+        private static IntPtr ToNativePointer<T>(T managed)
+            where T : struct
+        {
+            IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf<T>());
+            Marshal.StructureToPtr(managed, ptr, false);
+            return ptr;
         }
     }
 }
