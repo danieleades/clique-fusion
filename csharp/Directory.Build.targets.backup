@@ -1,5 +1,0 @@
-<Project>
-  <ItemGroup>
-    <AdditionalFiles Include="$(SolutionDir)stylecop.json" />
-  </ItemGroup>
-</Project>
