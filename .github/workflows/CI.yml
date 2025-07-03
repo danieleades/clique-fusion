@@ -91,12 +91,21 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
-      - run: dotnet restore
+      # 1. Restore and build main projects only (not SmokeTest)
+      - run: dotnet restore src/CliqueFusion/CliqueFusion.csproj
+      - run: dotnet restore src/CliqueFusion.Tests/CliqueFusion.Tests.csproj
       - run: dotnet format --verify-no-changes --verbosity diagnostic
       - run: dotnet build --no-restore --warnaserror --configuration Release
+
+      # 2. Pack the library
+      - run: dotnet pack src/CliqueFusion --output ./nupkgs --no-build --configuration Release
+
+      # 3. Restore again, but this time with access to the locally packed package
+      - run: dotnet restore
+
+      # 4. Now safe to test and run the SmokeTest
       - run: dotnet test --no-restore --configuration Release
-      - run: dotnet pack src/CliqueFusion --output ./nupkgs --configuration Release
-      - run: dotnet run --project src/CliqueFusion.SmokeTest --configuration Release
+      - run: dotnet run --project src/CliqueFusion.SmokeTest --no-restore --configuration Release
       - uses: actions/upload-artifact@v4
         with:
           name: packed-nupkg
