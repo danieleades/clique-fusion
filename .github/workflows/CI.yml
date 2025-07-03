@@ -96,7 +96,8 @@ jobs:
       - run: dotnet restore src/CliqueFusion.Tests/CliqueFusion.Tests.csproj
 
       # 2. Build only the core projects
-      - run: dotnet build --no-restore --warnaserror --configuration Release
+      - run: dotnet build src/CliqueFusion/CliqueFusion.csproj --no-restore --warnaserror --configuration Release
+      - run: dotnet build src/CliqueFusion.Tests/CliqueFusion.Tests.csproj --no-restore --warnaserror --configuration Release
 
       # 3. Pack the main library
       - run: dotnet pack src/CliqueFusion --output ./nupkgs --no-build --configuration Release
