@@ -1,4 +1,8 @@
-﻿using CliqueFusion;
+﻿// <copyright file="Program.cs" company="Daniel Eades">
+// Copyright (c) Daniel Eades. All rights reserved.
+// </copyright>
+
+using CliqueFusion;
 
 Console.WriteLine("🔥 Running CliqueFusion smoke test...");
 
@@ -15,5 +19,7 @@ foreach (var clique in cliques)
 {
     Console.WriteLine($"Clique ({clique.ObservationIds.Count} observations):");
     foreach (var id in clique.ObservationIds)
+    {
         Console.WriteLine($" - {id}");
+    }
 }
