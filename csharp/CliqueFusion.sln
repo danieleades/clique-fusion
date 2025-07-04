@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CliqueFusion", "src\CliqueF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CliqueFusion.Tests", "src\CliqueFusion.Tests\CliqueFusion.Tests.csproj", "{D7524AFA-F943-490E-A0B0-D521E7588882}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CliqueFusion.SmokeTest", "src\CliqueFusion.SmokeTest\CliqueFusion.SmokeTest.csproj", "{1D387649-4C0A-4A4B-A760-37FE9DDBD67D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,9 +28,14 @@ Global
 		{D7524AFA-F943-490E-A0B0-D521E7588882}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D7524AFA-F943-490E-A0B0-D521E7588882}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D7524AFA-F943-490E-A0B0-D521E7588882}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D387649-4C0A-4A4B-A760-37FE9DDBD67D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D387649-4C0A-4A4B-A760-37FE9DDBD67D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D387649-4C0A-4A4B-A760-37FE9DDBD67D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D387649-4C0A-4A4B-A760-37FE9DDBD67D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{45CD2BE7-D288-4025-B2E0-3D93A6F31457} = {AE994733-0DC8-428E-894D-6B9823CB4C52}
 		{D7524AFA-F943-490E-A0B0-D521E7588882} = {AE994733-0DC8-428E-894D-6B9823CB4C52}
+		{1D387649-4C0A-4A4B-A760-37FE9DDBD67D} = {AE994733-0DC8-428E-894D-6B9823CB4C52}
 	EndGlobalSection
 EndGlobal

@@ -1,10 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Xunit;
+// <copyright file="CliqueIndexTests.cs" company="Daniel Eades">
+// Copyright (c) Daniel Eades. All rights reserved.
+// </copyright>
 
 namespace CliqueFusion.Tests
 {
+    using Xunit;
+
     /// <summary>
     /// Tests for the high-level CliqueIndex wrapper around the native FFI.
     /// These tests ensure correct interop and fusion logic based on context rules.
@@ -13,11 +14,9 @@ namespace CliqueFusion.Tests
     {
         private const double Chi2Threshold = 5.99;
 
-        private static Observation CreateObservation(double x, double y, Guid? context = null)
-        {
-            return new Observation(Guid.NewGuid(), x, y, 1.0, 0.0, 1.0, context);
-        }
-
+        /// <summary>
+        /// Verifies that a new CliqueIndex contains no cliques.
+        /// </summary>
         [Fact]
         public void CanCreateEmptyIndex()
         {
@@ -26,6 +25,9 @@ namespace CliqueFusion.Tests
             Assert.Empty(cliques);
         }
 
+        /// <summary>
+        /// Verifies that a single observation without context does not form a clique.
+        /// </summary>
         [Fact]
         public void SingleObservationDoesNotFormClique()
         {
@@ -34,6 +36,9 @@ namespace CliqueFusion.Tests
             Assert.Empty(index.GetCliques());
         }
 
+        /// <summary>
+        /// Verifies that observations with matching context IDs do not fuse into a clique.
+        /// </summary>
         [Fact]
         public void ObservationsWithSameContextDoNotFuse()
         {
@@ -45,10 +50,12 @@ namespace CliqueFusion.Tests
             index.Insert(obs1);
             index.Insert(obs2);
 
-            // Even though positions are close, context match suppresses fusion
             Assert.Empty(index.GetCliques());
         }
 
+        /// <summary>
+        /// Verifies that observations with different context IDs can fuse into a clique if spatially close.
+        /// </summary>
         [Fact]
         public void ObservationsWithDifferentContextsCanFuse()
         {
@@ -66,6 +73,9 @@ namespace CliqueFusion.Tests
             Assert.Contains(obs2.Id, ids);
         }
 
+        /// <summary>
+        /// Verifies that observations with null contexts can fuse if spatially close.
+        /// </summary>
         [Fact]
         public void ObservationsWithNullContextsCanFuse()
         {
@@ -83,6 +93,9 @@ namespace CliqueFusion.Tests
             Assert.Contains(obs2.Id, ids);
         }
 
+        /// <summary>
+        /// Verifies that observations with mixed null and non-null contexts can still fuse.
+        /// </summary>
         [Fact]
         public void ObservationsWithNullAndNonNullContextCanFuse()
         {
@@ -97,6 +110,9 @@ namespace CliqueFusion.Tests
             Assert.Single(cliques);
         }
 
+        /// <summary>
+        /// Verifies that CliqueIndex can fuse observations passed to its constructor.
+        /// </summary>
         [Fact]
         public void ConstructorAcceptsInitialObservationsAndFuses()
         {
@@ -109,6 +125,9 @@ namespace CliqueFusion.Tests
             Assert.Single(cliques);
         }
 
+        /// <summary>
+        /// Verifies that inserting observations after construction is cumulative and fusion-aware.
+        /// </summary>
         [Fact]
         public void InsertingAfterConstructionAccumulates()
         {
@@ -124,6 +143,9 @@ namespace CliqueFusion.Tests
             Assert.Contains(cliques[0].ObservationIds, id => id == obs2.Id);
         }
 
+        /// <summary>
+        /// Verifies that using a disposed index throws appropriate exceptions.
+        /// </summary>
         [Fact]
         public void DisposingIndexPreventsUsage()
         {
@@ -134,10 +156,21 @@ namespace CliqueFusion.Tests
             Assert.Throws<ObjectDisposedException>(() => index.GetCliques());
         }
 
+        /// <summary>
+        /// Verifies that passing null as the initial observation list throws an ArgumentNullException.
+        /// </summary>
         [Fact]
         public void CreatingWithNullObservationListThrows()
         {
             Assert.Throws<ArgumentNullException>(() => new CliqueIndex(null!, CliqueThresholds.Confidence95));
+        }
+
+        /// <summary>
+        /// Creates a test Observation with fixed covariance and optional context.
+        /// </summary>
+        private static Observation CreateObservation(double x, double y, Guid? context = null)
+        {
+            return new Observation(Guid.NewGuid(), x, y, 1.0, 0.0, 1.0, context);
         }
     }
 }
