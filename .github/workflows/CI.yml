@@ -77,45 +77,42 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
 
-  csharp-linux:
-    name: C# Build & Test (Linux)
-    needs: [test, format, lint, msrv, docs, cargo-deny, coverage]
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: csharp
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cross
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-      # 1. Restore only non-SmokeTest projects
-      - run: dotnet restore src/CliqueFusion/CliqueFusion.csproj
-      - run: dotnet restore src/CliqueFusion.Tests/CliqueFusion.Tests.csproj
+csharp-linux:
+  name: C# Build & Test (Linux)
+  needs: [test, format, lint, msrv, docs, cargo-deny, coverage]
+  runs-on: ubuntu-latest
+  defaults:
+    run:
+      working-directory: csharp
+  steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - run: cargo install cross
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: "8.0.x"
 
-      # 2. Build only the core projects
-      - run: dotnet build src/CliqueFusion/CliqueFusion.csproj --no-restore --warnaserror --configuration Release
-      - run: dotnet build src/CliqueFusion.Tests/CliqueFusion.Tests.csproj --no-restore --warnaserror --configuration Release
+    # 1. Restore & build core projects via solution filter
+    - run: dotnet restore CliqueFusion.buildonly.slnf
+    - run: dotnet build CliqueFusion.buildonly.slnf --no-restore --warnaserror --configuration Release
 
-      # 3. Pack the main library
-      - run: dotnet pack src/CliqueFusion --output ./nupkgs --no-build --configuration Release
+    # 2. Pack the main library
+    - run: dotnet pack src/CliqueFusion --output ./nupkgs --no-build --configuration Release
 
-      # 4. Full restore (now that the .nupkg exists and is in NuGet.config)
-      - run: dotnet restore
+    # 3. Restore full solution (SmokeTest now resolvable via nupkg)
+    - run: dotnet restore
 
-      # 5. Now it's safe to format, as restore will succeed
-      - run: dotnet format --verify-no-changes --verbosity diagnostic
+    # 4. Format verification
+    - run: dotnet format --verify-no-changes --verbosity diagnostic
 
-      # 6. Tests and smoke test
-      - run: dotnet test --no-restore --configuration Release
-      - run: dotnet run --project src/CliqueFusion.SmokeTest --no-restore --configuration Release
+    # 5. Run all tests and SmokeTest
+    - run: dotnet test --no-restore --configuration Release
+    - run: dotnet run --project src/CliqueFusion.SmokeTest --no-restore --configuration Release
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: packed-nupkg
-          path: csharp/nupkgs
+    - uses: actions/upload-artifact@v4
+      with:
+        name: packed-nupkg
+        path: csharp/nupkgs
 
   csharp-windows:
     name: C# Smoke Test (Windows)
