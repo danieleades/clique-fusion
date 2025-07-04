@@ -91,12 +91,24 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+
+      # 1. Restore & build core projects via solution filter
+      - run: dotnet restore CliqueFusion.buildonly.slnf
+      - run: dotnet build CliqueFusion.buildonly.slnf --no-restore --warnaserror --configuration Release
+
+      # 2. Pack the main library
+      - run: dotnet pack src/CliqueFusion --output ./nupkgs --no-build --configuration Release
+
+      # 3. Restore full solution (SmokeTest now resolvable via nupkg)
       - run: dotnet restore
-      - run: dotnet format --verify-no-changes --verbosity diagnostic
-      - run: dotnet build --no-restore --warnaserror --configuration Release
+
+      # 4. Format verification
+      - run: dotnet format CliqueFusion.sln --verify-no-changes --verbosity diagnostic
+
+      # 5. Run all tests and SmokeTest
       - run: dotnet test --no-restore --configuration Release
-      - run: dotnet pack src/CliqueFusion --output ./nupkgs --configuration Release
-      - run: dotnet run --project src/CliqueFusion.SmokeTest --configuration Release
+      - run: dotnet run --project src/CliqueFusion.SmokeTest --no-restore --configuration Release
+
       - uses: actions/upload-artifact@v4
         with:
           name: packed-nupkg

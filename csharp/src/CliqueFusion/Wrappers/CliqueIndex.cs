@@ -1,45 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using CliqueFusion.Native;
+// <copyright file="CliqueIndex.cs" company="Daniel Eades">
+// Copyright (c) Daniel Eades. All rights reserved.
+// </copyright>
 
 namespace CliqueFusion
 {
-    /// <summary>
-    /// Provides predefined chi-squared thresholds for common confidence levels,
-    /// useful when constructing a <see cref="CliqueIndex"/>.
-    /// </summary>
-    public static class CliqueThresholds
-    {
-        public static double Confidence90 => CliqueIndexNative.CliqueIndex_chi2_confidence_90();
-        public static double Confidence95 => CliqueIndexNative.CliqueIndex_chi2_confidence_95();
-        public static double Confidence99 => CliqueIndexNative.CliqueIndex_chi2_confidence_99();
-    }
-
-    /// <summary>
-    /// Represents a 2D observation with a unique identifier, position, uncertainty (covariance), and optional context.
-    /// 
-    /// Observations within the same context are never merged into cliques. The context groups
-    /// observations that are known to be distinct — for example, simultaneous detections by a single sensor.
-    /// 
-    /// Observations with different contexts, or no context, may be fused into cliques if they are consistent
-    /// under the chi-squared test with the given uncertainty model.
-    /// </summary>
-    public record Observation(
-        Guid Id,
-        double X,
-        double Y,
-        double CovarianceXX,
-        double CovarianceXY,
-        double CovarianceYY,
-        Guid? Context = null);
-
-    /// <summary>
-    /// Represents a maximal clique — a group of observation IDs that have been clustered together
-    /// as mutually compatible under the chi-squared threshold.
-    /// </summary>
-    public record Clique(IReadOnlyList<Guid> ObservationIds);
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Runtime.InteropServices;
+    using CliqueFusion.Native;
 
     /// <summary>
     /// An index that accumulates observations and extracts maximal cliques from them.
@@ -47,34 +16,41 @@ namespace CliqueFusion
     /// </summary>
     public sealed class CliqueIndex : IDisposable
     {
-        private IntPtr _handle;
-        private bool _disposed;
-
         private static readonly int ObservationSize = Marshal.SizeOf<CliqueIndexNative.ObservationC>();
+        private IntPtr handle;
+        private bool disposed;
 
         /// <summary>
-        /// Constructs an empty clique index with a given chi-squared threshold.
+        /// Initializes a new instance of the <see cref="CliqueIndex"/> class
+        /// with a specified chi-squared threshold.
         /// </summary>
+        /// <param name="chi2Threshold">The chi-squared threshold used for clique compatibility.</param>
         public CliqueIndex(double chi2Threshold)
         {
-            _handle = CliqueIndexNative.CliqueIndex_new(chi2Threshold);
-            if (_handle == IntPtr.Zero)
+            this.handle = CliqueIndexNative.CliqueIndex_new(chi2Threshold);
+            if (this.handle == IntPtr.Zero)
+            {
                 throw new InvalidOperationException("Failed to create CliqueIndex");
+            }
         }
 
         /// <summary>
-        /// Constructs a clique index from an initial batch of observations.
-        /// This is more efficient than inserting observations one at a time.
+        /// Initializes a new instance of the <see cref="CliqueIndex"/> class
+        /// using an initial batch of observations.
         /// </summary>
+        /// <param name="observations">The observations to initialize the index with.</param>
+        /// <param name="chi2Threshold">The chi-squared threshold used for clique compatibility.</param>
         public CliqueIndex(IEnumerable<Observation> observations, double chi2Threshold)
         {
             if (observations is null)
+            {
                 throw new ArgumentNullException(nameof(observations));
+            }
 
             var observationList = observations.ToList();
             if (observationList.Count == 0)
             {
-                _handle = CliqueIndexNative.CliqueIndex_new(chi2Threshold);
+                this.handle = CliqueIndexNative.CliqueIndex_new(chi2Threshold);
             }
             else
             {
@@ -89,7 +65,7 @@ namespace CliqueFusion
                         Marshal.StructureToPtr(nativeObs[i], ptr, false);
                     }
 
-                    _handle = CliqueIndexNative.CliqueIndex_from_observations(
+                    this.handle = CliqueIndexNative.CliqueIndex_from_observations(
                         chi2Threshold, arrayPtr, (UIntPtr)nativeObs.Length);
                 }
                 finally
@@ -98,23 +74,26 @@ namespace CliqueFusion
                 }
             }
 
-            if (_handle == IntPtr.Zero)
+            if (this.handle == IntPtr.Zero)
+            {
                 throw new InvalidOperationException("Failed to create CliqueIndex from observations");
+            }
         }
 
         /// <summary>
         /// Inserts a new observation into the index.
         /// </summary>
+        /// <param name="observation">The observation to insert.</param>
         public void Insert(Observation observation)
         {
-            ThrowIfDisposed();
+            this.ThrowIfDisposed();
 
             var nativeObs = ToNative(observation);
             var obsPtr = Marshal.AllocHGlobal(ObservationSize);
             try
             {
                 Marshal.StructureToPtr(nativeObs, obsPtr, false);
-                CliqueIndexNative.CliqueIndex_insert(_handle, obsPtr);
+                CliqueIndexNative.CliqueIndex_insert(this.handle, obsPtr);
             }
             finally
             {
@@ -123,15 +102,18 @@ namespace CliqueFusion
         }
 
         /// <summary>
-        /// Retrieves the current set of maximal cliques, as grouped by the index.
+        /// Retrieves the current set of maximal cliques.
         /// </summary>
+        /// <returns>A list of cliques containing observation IDs.</returns>
         public IReadOnlyList<Clique> GetCliques()
         {
-            ThrowIfDisposed();
+            this.ThrowIfDisposed();
 
-            var cliquesPtr = CliqueIndexNative.CliqueIndex_cliques(_handle);
+            var cliquesPtr = CliqueIndexNative.CliqueIndex_cliques(this.handle);
             if (cliquesPtr == IntPtr.Zero)
+            {
                 return Array.Empty<Clique>();
+            }
 
             try
             {
@@ -161,25 +143,27 @@ namespace CliqueFusion
             }
         }
 
+        /// <summary>
+        /// Releases all native resources associated with this instance.
+        /// </summary>
+        public void Dispose()
+        {
+            if (!this.disposed && this.handle != IntPtr.Zero)
+            {
+                CliqueIndexNative.CliqueIndex_free(this.handle);
+                this.handle = IntPtr.Zero;
+                this.disposed = true;
+            }
+        }
+
         private static CliqueIndexNative.ObservationC ToNative(Observation o) =>
             new(o.Id, o.X, o.Y, o.CovarianceXX, o.CovarianceXY, o.CovarianceYY, o.Context);
 
         private void ThrowIfDisposed()
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(CliqueIndex));
-        }
-
-        /// <summary>
-        /// Frees native resources associated with this instance.
-        /// </summary>
-        public void Dispose()
-        {
-            if (!_disposed && _handle != IntPtr.Zero)
+            if (this.disposed)
             {
-                CliqueIndexNative.CliqueIndex_free(_handle);
-                _handle = IntPtr.Zero;
-                _disposed = true;
+                throw new ObjectDisposedException(nameof(CliqueIndex));
             }
         }
     }
