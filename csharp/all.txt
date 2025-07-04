@@ -1,5 +1,0 @@
-Project(s)
-----------
-src/CliqueFusion.SmokeTest/CliqueFusion.SmokeTest.csproj
-src/CliqueFusion.Tests/CliqueFusion.Tests.csproj
-src/CliqueFusion/CliqueFusion.csproj

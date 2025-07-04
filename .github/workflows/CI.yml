@@ -103,7 +103,7 @@ jobs:
       - run: dotnet restore
 
       # 4. Format verification
-      - run: dotnet format --verify-no-changes --verbosity diagnostic
+      - run: dotnet format CliqueFusion.sln --verify-no-changes --verbosity diagnostic
 
       # 5. Run all tests and SmokeTest
       - run: dotnet test --no-restore --configuration Release
