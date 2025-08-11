@@ -5,17 +5,17 @@ use clique_fusion::{
 use uuid::Uuid;
 
 #[unsafe(no_mangle)]
-pub extern "C" fn CliqueIndex_chi2_confidence_90() -> f64 {
+pub const extern "C" fn CliqueIndex_chi2_confidence_90() -> f64 {
     CHI2_2D_CONFIDENCE_90
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn CliqueIndex_chi2_confidence_95() -> f64 {
+pub const extern "C" fn CliqueIndex_chi2_confidence_95() -> f64 {
     CHI2_2D_CONFIDENCE_95
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn CliqueIndex_chi2_confidence_99() -> f64 {
+pub const extern "C" fn CliqueIndex_chi2_confidence_99() -> f64 {
     CHI2_2D_CONFIDENCE_99
 }
 
@@ -34,7 +34,7 @@ pub struct ObservationC {
     pub context: UuidC,
 }
 
-fn parse_uuid(bytes: UuidC) -> Option<Uuid> {
+const fn parse_uuid(bytes: UuidC) -> Option<Uuid> {
     let uuid = Uuid::from_bytes(bytes);
     if uuid.is_nil() { None } else { Some(uuid) }
 }
@@ -48,7 +48,7 @@ impl From<ObservationC> for Unique<Observation, Uuid> {
         if let Some(context) = parse_uuid(obs_c.context) {
             observation_builder = observation_builder.context(context);
         }
-        Unique {
+        Self {
             id,
             data: observation_builder.build(),
         }
@@ -184,11 +184,11 @@ pub unsafe extern "C" fn CliqueSetC_free(ptr: *mut CliqueSetC) {
 
     // Fully reconstruct the outer Vec<CliqueC>
     let cliques_vec =
-        unsafe { Vec::from_raw_parts(boxed.cliques as *mut CliqueC, boxed.len, boxed.len) };
+        unsafe { Vec::from_raw_parts(boxed.cliques.cast_mut(), boxed.len, boxed.len) };
 
     for clique in cliques_vec {
         // Reconstruct and drop the inner UUID arrays
-        let _ = unsafe { Vec::from_raw_parts(clique.uuids as *mut UuidC, clique.len, clique.len) };
+        let _ = unsafe { Vec::from_raw_parts(clique.uuids.cast_mut(), clique.len, clique.len) };
     }
 
     // `boxed` is dropped here, releasing CliqueSetC itself
@@ -303,7 +303,7 @@ mod tests {
             context: nil_uuid(),
         };
 
-        let unique: Unique<Observation, Uuid> = obs_c.clone().into();
+        let unique: Unique<Observation, Uuid> = obs_c.into();
 
         assert_eq!(unique.id, id);
         assert_eq!(unique.data.x(), 1.0);
@@ -326,7 +326,7 @@ mod tests {
             context: uuidc_from_uuid(ctx),
         };
 
-        let unique: Unique<Observation, Uuid> = obs_c.clone().into();
+        let unique: Unique<Observation, Uuid> = obs_c.into();
 
         assert_eq!(unique.id, id);
         assert_eq!(unique.data.x(), 3.0);
