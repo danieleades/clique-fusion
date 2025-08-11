@@ -1,3 +1,23 @@
+//! Observations with 2D positional uncertainty and statistical compatibility tests.
+//!
+//! An [`Observation`] pairs a 2D position with a covariance matrix capturing
+//! Gaussian positional uncertainty. Compatibility between two observations is
+//! tested via the squared Mahalanobis distance using the **sum** of their
+//! covariances, which is optimal under independence:
+//! 
+//! - Effective covariance: Σ = Σ_A + Σ_B
+//! - Distance: d² = (A − B)ᵀ Σ⁻¹ (A − B)
+//!
+//! Compare `d²` to a chi-square threshold with 2 degrees of freedom
+//! (e.g., `CHI2_2D_CONFIDENCE_95 = 5.991464547`) to decide compatibility.
+//!
+//! The helper [`Observation::max_compatibility_radius`] provides a conservative
+//! Euclidean radius for spatial prefiltering, using the spectral bound
+//! `λ_max(Σ_A + Σ_B) ≤ λ_max(Σ_A) + λ_max(Σ_B)`.
+//!
+//! # Examples
+//! See the `Observation::builder` examples and `is_compatible_with` docs below.
+
 use nalgebra::{Point2, Vector2};
 
 mod covariance_matrix;
@@ -8,13 +28,13 @@ use uuid::Uuid;
 use crate::observation::covariance_matrix::InvalidRadius;
 
 /// Chi-squared threshold for 90% confidence in 2D (2 degrees of freedom)
-pub const CHI2_2D_CONFIDENCE_90: f64 = 4.605;
+pub const CHI2_2D_CONFIDENCE_90: f64 = 4.605170186;
 
 /// Chi-squared threshold for 95% confidence in 2D (2 degrees of freedom)
-pub const CHI2_2D_CONFIDENCE_95: f64 = 5.991;
+pub const CHI2_2D_CONFIDENCE_95: f64 = 5.991464547;
 
 /// Chi-squared threshold for 99% confidence in 2D (2 degrees of freedom)
-pub const CHI2_2D_CONFIDENCE_99: f64 = 9.210;
+pub const CHI2_2D_CONFIDENCE_99: f64 = 9.210340372;
 
 #[must_use]
 #[derive(Debug)]
@@ -223,11 +243,8 @@ impl Observation {
     #[must_use]
     pub fn is_compatible_with(&self, other: &Self, chi2_threshold: f64) -> bool {
         let delta = self.position - other.position;
-        let delta_vec = Vector2::new(delta.x, delta.y);
-
         let combined_covariance = self.error + other.error;
-
-        let d2 = mahalanobis_squared(delta_vec, combined_covariance);
+        let d2 = mahalanobis_squared(delta, combined_covariance);
         d2 <= chi2_threshold
     }
 
@@ -278,7 +295,7 @@ mod tests {
             .build()
             .error_covariance()
             .into();
-        let expected_variance = radius.powi(2) / 5.991;
+        let expected_variance = radius.powi(2) / CHI2_2D_CONFIDENCE_95;
         let expected = Matrix2::new(expected_variance, 0.0, 0.0, expected_variance);
         assert_relative_eq!(actual_variance, expected, epsilon = f64::EPSILON);
     }
@@ -297,7 +314,7 @@ mod tests {
         let a = Observation::builder(0.0, 0.0).error(cov).build();
         let b = Observation::builder(1.0, 1.0).error(cov).build();
 
-        // Mahalanobis distance squared should be 2 in both directions under identity covariance
+        // Mahalanobis distance squared should be 1 under identity covariances (combined is 2I)
         assert!(a.is_compatible_with(&b, CHI2_2D_CONFIDENCE_95));
     }
 
