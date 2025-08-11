@@ -8,11 +8,11 @@ use uuid::Uuid;
 
 type UuidC = [u8; 16];
 
-fn uuid_to_uuidc(uuid: Uuid) -> UuidC {
+const fn uuid_to_uuidc(uuid: Uuid) -> UuidC {
     *uuid.as_bytes()
 }
 
-fn make_observation(id: Uuid, x: f64, y: f64) -> ObservationC {
+const fn make_observation(id: Uuid, x: f64, y: f64) -> ObservationC {
     ObservationC {
         id: uuid_to_uuidc(id),
         x,
@@ -61,7 +61,7 @@ fn test_create_insert_cliques_free() {
         let ids: &[[u8; 16]] = unsafe { slice::from_raw_parts(clique.uuids, clique.len) };
         for uuid_bytes in ids {
             let uuid = Uuid::from_bytes(*uuid_bytes);
-            println!(" - {:?}", uuid);
+            println!(" - {uuid:?}");
         }
     }
 
