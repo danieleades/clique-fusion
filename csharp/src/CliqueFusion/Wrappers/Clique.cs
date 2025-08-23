@@ -8,8 +8,7 @@ namespace CliqueFusion
     using System.Collections.Generic;
 
     /// <summary>
-    /// Represents a maximal clique — a group of observation IDs that have been clustered together
-    /// as mutually compatible under the chi-squared threshold.
+    /// A maximal clique of mutually compatible observations.
     /// </summary>
     public record Clique(IReadOnlyList<Guid> ObservationIds);
 }

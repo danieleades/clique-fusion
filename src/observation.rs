@@ -33,7 +33,7 @@ impl ObservationBuilder<()> {
         }
     }
 
-    /// Sets the positional error for the [`Observation`].
+    /// Sets the covariance matrix describing positional error.
     pub const fn error(self, error: CovarianceMatrix) -> ObservationBuilder<CovarianceMatrix> {
         ObservationBuilder {
             position: self.position,
@@ -42,11 +42,10 @@ impl ObservationBuilder<()> {
         }
     }
 
-    /// Sets a circular 95% confidence positional error for the [`Observation`].
+    /// Convenience method to assign a circular 95 % confidence error.
     ///
-    /// Ie. a gaussian error where 95% of the probability mass is contained within the given radius.
-    ///
-    /// See [`CovarianceMatrix::from_circular_95_confidence`].
+    /// A radius `r` implies a covariance matrix with variance `r² / χ²` where `χ²` is the
+    /// 95 % chi-squared threshold for two degrees of freedom.
     pub fn circular_95_confidence_error(
         self,
         radius: f64,
@@ -61,9 +60,9 @@ impl ObservationBuilder<()> {
 }
 
 impl<E> ObservationBuilder<E> {
-    /// Set the 'context' for the [`Observation`].
+    /// Attaches a context identifier.
     ///
-    /// See [`Observation::context`].
+    /// See [`Observation::context`] for details on how contexts affect fusion.
     pub const fn context(mut self, id: Uuid) -> Self {
         self.context = Some(id);
         self
@@ -71,7 +70,7 @@ impl<E> ObservationBuilder<E> {
 }
 
 impl ObservationBuilder<CovarianceMatrix> {
-    /// Finalise the builder and return an [`Observation`].
+    /// Finalises the builder and returns the [`Observation`].
     pub const fn build(self) -> Observation {
         Observation {
             position: self.position,
@@ -189,37 +188,13 @@ impl Observation {
         ObservationBuilder::new(x, y)
     }
 
-    /// Determines whether two observations are statistically compatible under the assumption
-    /// that they represent independent measurements of the same underlying object.
+    /// Tests whether `other` could represent the same object.
     ///
-    /// This method computes the squared Mahalanobis distance between the two observation positions,
-    /// using the **sum of their covariance matrices** as the effective uncertainty model.
+    /// The squared Mahalanobis distance between the two positions is evaluated under the
+    /// sum of their covariance matrices:
+    /// `d² = (a−b)ᵀ (Σₐ + Σ_b)⁻¹ (a−b)`.
     ///
-    /// This is statistically optimal for the case where each observation is modelled as a 2D
-    /// Gaussian distribution with independent noise, and you're testing the hypothesis that both
-    /// were drawn from the same true (but unknown) location.
-    ///
-    /// The combined covariance models the uncertainty in the difference between the two observations:
-    ///     Cov[A − B] = Cov[A] + Cov[B]
-    ///
-    /// The Mahalanobis distance is then:
-    ///     d² = (A − B)ᵀ ⋅ (Σ_A + Σ_B)⁻¹ ⋅ (A − B)
-    ///
-    /// If this distance is less than or equal to the given chi-squared threshold (typically based
-    /// on 2 degrees of freedom for 2D), the observations are considered compatible.
-    ///
-    /// # Parameters
-    /// - `other`: The observation to compare against.
-    /// - `chi2_threshold`: The chi-squared threshold corresponding to the desired confidence level
-    ///   (e.g., 5.991 for 95% confidence in 2D).
-    ///
-    /// # Returns
-    /// `true` if the squared Mahalanobis distance between the observations is less than or equal
-    /// to the threshold, indicating statistical compatibility; otherwise `false`.
-    ///
-    /// # See also
-    /// - [Mahalanobis distance](https://en.wikipedia.org/wiki/Mahalanobis_distance)
-    /// - [Chi-squared distribution](https://en.wikipedia.org/wiki/Chi-squared_distribution)
+    /// Returns `true` when `d² ≤ chi2_threshold`.
     #[must_use]
     pub fn is_compatible_with(&self, other: &Self, chi2_threshold: f64) -> bool {
         let delta = self.position - other.position;
@@ -231,18 +206,10 @@ impl Observation {
         d2 <= chi2_threshold
     }
 
-    /// Computes a conservative maximum radius for spatial filtering to identify potentially
-    /// compatible observations under the statistically optimal compatibility test.
+    /// Computes a conservative search radius for spatial indexing.
     ///
-    /// This radius corresponds to the maximum Mahalanobis distance consistent with the given chi-squared
-    /// threshold, using the worst-case assumption about the other observation's error.
-    ///
-    /// The method assumes that the other observation's maximum variance does not exceed `max_other_variance`.
-    /// The resulting radius ensures that no compatible observation is missed during spatial indexing.
-    ///
-    /// # Parameters
-    /// - `chi2_threshold`: Chi-squared threshold for compatibility (e.g., 5.991 for 95% confidence in 2D)
-    /// - `max_other_variance`: Assumed upper bound on the largest eigenvalue of the candidate observation's covariance
+    /// `max_other_variance` bounds the largest variance of any potential neighbour and ensures
+    /// that no compatible observation is missed when querying the index.
     #[must_use]
     pub(crate) fn max_compatibility_radius(
         &self,

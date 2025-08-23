@@ -4,7 +4,7 @@ use rstar::{AABB, PointDistance, RTree, RTreeObject};
 
 use crate::Observation;
 
-/// A wrapper type that assigns a unique identifier to its payload.
+/// Pairs a value with a unique identifier.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unique<T, Id> {
     /// The wrapped payload.
@@ -31,7 +31,7 @@ impl<Id> PointDistance for Unique<Observation, Id> {
     }
 }
 
-/// A spatial index supporting efficient nearest-neighbour and mutual-compatibility queries.
+/// Spatial index for observations supporting compatibility queries.
 #[derive(Debug)]
 pub struct SpatialIndex<Id> {
     tree: RTree<Unique<Observation, Id>>,
@@ -66,12 +66,9 @@ impl<Id> SpatialIndex<Id>
 where
     Id: PartialEq,
 {
-    /// Construct a spatial index from an initial list of observations.
+    /// Builds an index from a batch of observations.
     ///
-    /// This is significantly faster than inserting observations individually via [`Self::insert`],
-    /// especially for large numbers of items, due to bulk construction optimizations.
-    ///
-    /// See also: [`Self::insert`] for incremental use cases.
+    /// Prefer this to [`insert`](Self::insert) when many observations are known up front.
     #[must_use]
     pub fn from_observations(observations: Vec<Unique<Observation, Id>>) -> Self {
         let max_variance = observations
@@ -83,16 +80,9 @@ where
         Self { tree, max_variance }
     }
 
-    /// Insert a single observation into the spatial index.
+    /// Inserts a single observation.
     ///
-    /// Note: This method is slower than constructing the index in bulk via [`Self::from_observations`],
-    /// and should be used only when dynamic insertion is required.
-    ///
-    /// See also: [`Self::from_observations`] for batch construction.
-    ///
-    /// # Panics
-    ///
-    /// Panics in debug builds if an observation with the same ID already exists in the index.
+    /// Panics in debug builds if the ID already exists.
     pub fn insert(&mut self, observation: Unique<Observation, Id>) {
         debug_assert!(
             !self.tree.contains(&observation),
@@ -109,19 +99,9 @@ where
 }
 
 impl<Id> SpatialIndex<Id> {
-    /// Find observations that are mutually compatible with a given query observation.
+    /// Finds observations that are mutually compatible with `query`.
     ///
-    /// Mutual compatibility means that both observations lie within each other's uncertainty
-    /// ellipses under a specified chi-squared threshold. This is typically used to identify
-    /// candidate pairs for sensor fusion.
-    ///
-    /// Observations that share the same *observation context* are excluded.
-    /// This is important because the purpose of the algorithm is to identify pairs of observations
-    /// that are consistent with originating from the *same* underlying object. However, if two
-    /// observations are captured within the same context — for example, during the same sensor
-    /// snapshot or measurement — then although absolute positioning error (e.g., platform GPS error)
-    /// might be high, the *relative* error between those observations is negligible. In such cases,
-    /// fusion is never appropriate, as we can perfectly distinguish them as separate entities.
+    /// Observations sharing the same context are skipped.
     pub fn find_compatible<'a>(
         &'a self,
         query: &Unique<Observation, Id>,
@@ -155,11 +135,7 @@ impl<Id> SpatialIndex<Id>
 where
     Id: PartialEq + Eq + std::hash::Hash + Copy,
 {
-    /// Build a graph connecting mutually compatible observations.
-    ///
-    /// The result is an undirected graph represented as an adjacency list, where each node is an
-    /// observation ID and edges represent pairs of observations whose error ellipses mutually include
-    /// the other's position under the given chi-squared threshold.
+    /// Builds an adjacency graph of mutually compatible observations.
     pub fn compatibility_graph(
         &self,
         chi2_threshold: f64,

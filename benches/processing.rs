@@ -12,7 +12,7 @@ use uuid::Uuid;
 mod gen_data;
 use gen_data::{Config, generate_observations};
 
-/// Read and parse JSONL file
+/// Generates observations where 5 % are clustered.
 fn five_pct_clustered() -> Vec<Unique<Observation, Uuid>> {
     let config = Config {
         spread: 500.0,

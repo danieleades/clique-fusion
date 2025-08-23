@@ -5,16 +5,19 @@ use clique_fusion::{
 use uuid::Uuid;
 
 #[unsafe(no_mangle)]
+/// Chi-squared threshold for 90 % confidence.
 pub const extern "C" fn CliqueIndex_chi2_confidence_90() -> f64 {
     CHI2_2D_CONFIDENCE_90
 }
 
 #[unsafe(no_mangle)]
+/// Chi-squared threshold for 95 % confidence.
 pub const extern "C" fn CliqueIndex_chi2_confidence_95() -> f64 {
     CHI2_2D_CONFIDENCE_95
 }
 
 #[unsafe(no_mangle)]
+/// Chi-squared threshold for 99 % confidence.
 pub const extern "C" fn CliqueIndex_chi2_confidence_99() -> f64 {
     CHI2_2D_CONFIDENCE_99
 }
@@ -30,7 +33,7 @@ pub struct ObservationC {
     pub cov_xx: f64,
     pub cov_xy: f64,
     pub cov_yy: f64,
-    /// A Uuid. a null uuid is equivalent to providing no context.
+    /// Observation context. A nil UUID indicates no context.
     pub context: UuidC,
 }
 
@@ -55,35 +58,17 @@ impl From<ObservationC> for Unique<Observation, Uuid> {
     }
 }
 
-/// Initialise a new [`CliqueIndex`].
+/// Creates a new [`CliqueIndex`].
 #[unsafe(no_mangle)]
 pub extern "C" fn CliqueIndex_new(chi2: f64) -> *mut CliqueIndex<Uuid> {
     Box::into_raw(Box::new(CliqueIndex::new(chi2)))
 }
 
-/// Initialise a new [`CliqueIndex`] from a list of observations.
-///
-/// This is faster than creating an empty index and adding the observations one at a time.
+/// Creates a [`CliqueIndex`] from an array of observations.
 ///
 /// # Safety
-///
-/// - `observations` must be a valid pointer to `len` contiguous `ObservationC` structs.
-/// - `observations` must not be null unless `len == 0`.
-/// - The memory referenced by `observations` must remain valid for the duration of the call.
-/// - The returned pointer must be freed with `CliqueIndex_free` when no longer needed.
-///
-/// # Errors
-///
-/// - If `observations` is null and `len > 0`, this function returns a null pointer.
-///   The caller should check the return value before using it.
-///
-/// # Example
-/// ```c
-/// CliqueIndex* idx = CliqueIndex_from_observations(chi2, obs_array, len);
-/// if (idx == NULL) {
-///     // Handle error
-/// }
-/// ```
+/// - `observations` must point to `len` contiguous [`ObservationC`] values.
+/// - The returned pointer must be freed with [`CliqueIndex_free`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn CliqueIndex_from_observations(
     chi2: f64,
@@ -103,24 +88,10 @@ pub unsafe extern "C" fn CliqueIndex_from_observations(
 }
 
 #[unsafe(no_mangle)]
-/// Insert an observation into an existing [`CliqueIndex`].
-///
-/// Note that it is quicker to create a [`CliqueIndex`] from a batch of observations using
-/// [`CliqueIndex_from_observations`], but this function is useful for incrementally adding observations.
+/// Inserts an observation into an existing [`CliqueIndex`].
 ///
 /// # Safety
-///
-/// - `clique_index_ptr` must be a valid, non-null pointer to a `CliqueIndex<Uuid>`.
-/// - `observation` must be a valid, non-null pointer to an `ObservationC`.
-/// - The caller must ensure that no other references (mutable or immutable) to the `CliqueIndex`
-///   exist for the duration of the call (i.e., uphold Rust aliasing rules).
-///
-/// # Errors
-///
-/// - If either pointer is null, this function does nothing.
-///
-/// This function does not take ownership of `clique_index_ptr`; it modifies the pointed-to object
-/// in-place. The pointer remains valid after the call.
+/// - `clique_index_ptr` and `observation` must be valid pointers.
 pub unsafe extern "C" fn CliqueIndex_insert(
     clique_index_ptr: *mut CliqueIndex<Uuid>,
     observation: *const ObservationC,
@@ -134,7 +105,7 @@ pub unsafe extern "C" fn CliqueIndex_insert(
     clique_index.insert(rust_obs);
 }
 
-/// A single clique: a set of UUIDs (observations) belonging to the same maximal clique.
+/// A single maximal clique represented as UUIDs.
 ///
 /// # Fields
 /// - `uuids`: A pointer to an array of 16-byte UUIDs. Must be valid for reads.
@@ -145,7 +116,7 @@ pub struct CliqueC {
     pub len: usize,
 }
 
-/// A set of maximal cliques returned by `CliqueIndex_cliques`.
+/// A set of maximal cliques returned by [`CliqueIndex_cliques`].
 ///
 /// # Fields
 /// - `cliques`: Pointer to an array of [`CliqueC`] structures.
@@ -156,7 +127,7 @@ pub struct CliqueSetC {
     pub len: usize,
 }
 
-/// Frees memory previously allocated by `CliqueIndex_cliques`.
+/// Frees memory allocated by [`CliqueIndex_cliques`].
 ///
 /// This deallocates all memory owned by the `CliqueSetC`, including:
 /// - Each inner list of UUIDs (allocated as `Vec<[u8; 16]>`)
@@ -194,21 +165,11 @@ pub unsafe extern "C" fn CliqueSetC_free(ptr: *mut CliqueSetC) {
     // `boxed` is dropped here, releasing CliqueSetC itself
 }
 
-/// Returns the current set of maximal cliques from the [`CliqueIndex`].
-///
-/// Each clique is represented as a set of UUIDs. The result is wrapped in a
-/// [`CliqueSetC`] structure containing an array of [`CliqueC`] entries.
+/// Returns all cliques currently stored in the index.
 ///
 /// # Safety
-///
-/// - `ptr` must be a valid, non-null pointer to a [`CliqueIndex<Uuid>`] allocated by this library.
-/// - The caller takes ownership of the returned pointer and is responsible for freeing it using
-///   [`CliqueSetC_free`] to avoid memory leaks.
-/// - The returned structure points to heap-allocated memory and must not be mutated.
-///
-/// # Errors
-///
-/// If `ptr` is null, this function returns a null pointer.
+/// - `ptr` must be a valid pointer to a [`CliqueIndex<Uuid>`].
+/// - The caller must free the returned pointer with [`CliqueSetC_free`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn CliqueIndex_cliques(ptr: *const CliqueIndex<Uuid>) -> *mut CliqueSetC {
     if ptr.is_null() {
@@ -245,11 +206,7 @@ pub unsafe extern "C" fn CliqueIndex_cliques(ptr: *const CliqueIndex<Uuid>) -> *
     Box::into_raw(result)
 }
 
-/// Free the memory associated with a [`CliqueIndex`].
-///
-/// # Safety
-///
-/// `ptr` must have been returned by `CliqueIndex_new` and not already freed.
+/// Frees a [`CliqueIndex`] created by [`CliqueIndex_new`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn CliqueIndex_free(ptr: *mut CliqueIndex<Uuid>) {
     if !ptr.is_null() {

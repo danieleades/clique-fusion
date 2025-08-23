@@ -2,10 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{Observation, Unique, cliques::find_maximal_cliques, spatial_index::SpatialIndex};
 
-/// An index which tracks the 'cliques' in the set of observations.
+/// Groups mutually compatible observations into maximal cliques.
 ///
-/// A 'clique' in this case represents a cluster of observations which lie mutually within each other's error ellipses,
-/// and are therefore consistent with being observations of the same underlying object.
+/// Each clique is a set of observation IDs whose error ellipses all overlap under a
+/// chi-squared threshold. The index maintains a spatial index and compatibility graph
+/// to make incremental updates efficient.
 #[derive(Debug)]
 pub struct CliqueIndex<Id> {
     spatial_index: SpatialIndex<Id>,
@@ -18,7 +19,14 @@ impl<Id> CliqueIndex<Id>
 where
     Id: Eq + std::hash::Hash + Copy + std::fmt::Debug,
 {
-    /// Construct a new index with a given confidence interval, defined by a Chi2 parameter
+    /// Creates an empty index with a chi-squared threshold.
+    ///
+    /// # Example
+    /// ```
+    /// use clique_fusion::{CliqueIndex, CHI2_2D_CONFIDENCE_95};
+    /// let index: CliqueIndex<i32> = CliqueIndex::new(CHI2_2D_CONFIDENCE_95);
+    /// assert!(index.is_empty());
+    /// ```
     #[must_use]
     pub fn new(chi2: f64) -> Self {
         Self {
@@ -29,14 +37,21 @@ where
         }
     }
 
-    /// Construct a new index populated with an initial vector of observations.
+    /// Builds an index from a batch of observations.
     ///
-    /// Constructing an index from a list of observations up front is much faster than adding them
-    /// one at a time to an existing index.
+    /// Constructing the index in bulk is faster than inserting observations one by one.
+    /// Observations sharing the same context are never fused into the same clique.
     ///
-    /// Note that observations in the same 'context' are never merged into cliques with each other, since
-    /// they are assumed to have negligible relative error between them, and hence are distinguishable as
-    /// separate objects.
+    /// # Example
+    /// ```
+    /// use clique_fusion::{Observation, Unique, CliqueIndex, CHI2_2D_CONFIDENCE_95};
+    /// let obs = Observation::builder(0.0, 0.0)
+    ///     .circular_95_confidence_error(5.0)
+    ///     .unwrap()
+    ///     .build();
+    /// let index = CliqueIndex::from_observations(vec![Unique { id: 1, data: obs }], CHI2_2D_CONFIDENCE_95);
+    /// assert_eq!(index.cliques().len(), 0);
+    /// ```
     #[must_use]
     pub fn from_observations(observations: Vec<Unique<Observation, Id>>, chi2: f64) -> Self {
         let spatial_index = SpatialIndex::from_observations(observations);
@@ -50,12 +65,21 @@ where
         }
     }
 
-    /// Inserts a new observation, updating the spatial index, compatibility graph,
-    /// and recomputing cliques in the affected subgraph.
+    /// Inserts an observation and updates affected cliques.
     ///
-    /// Note that observations in the same 'context' are never merged into cliques with each other, since
-    /// they are assumed to have negligible relative error between them, and hence are distinguishable as
-    /// separate objects.
+    /// Observations that share a context are treated as distinct and never merged.
+    ///
+    /// # Example
+    /// ```
+    /// use clique_fusion::{Observation, Unique, CliqueIndex, CHI2_2D_CONFIDENCE_95};
+    /// let mut index: CliqueIndex<i32> = CliqueIndex::new(CHI2_2D_CONFIDENCE_95);
+    /// let obs = Observation::builder(0.0, 0.0)
+    ///     .circular_95_confidence_error(5.0)
+    ///     .unwrap()
+    ///     .build();
+    /// index.insert(Unique { id: 1, data: obs });
+    /// assert!(index.cliques().is_empty());
+    /// ```
     ///
     /// # Panics
     ///
@@ -107,13 +131,11 @@ where
         }
     }
 
-    /// Extract subgraph containing only the specified nodes and edges between them
+    /// Extracts the portion of the compatibility graph spanned by `affected_nodes`.
     ///
-    /// The algorithm works as follows:
-    /// 1. For each node in the affected region
-    /// 2. Get all its neighbors from the full compatibility graph
-    /// 3. Filter to only include neighbors that are also in the affected region
-    /// 4. This creates a subgraph where only internal edges are preserved
+    /// 1. Iterate over nodes in `affected_nodes`.
+    /// 2. Look up each node's neighbours.
+    /// 3. Keep only neighbours also in `affected_nodes`.
     fn extract_subgraph(
         &self,
         affected_nodes: &HashSet<Id>,
@@ -137,7 +159,7 @@ where
         })
     }
 
-    /// Update the global clique set by removing stale cliques and adding new ones
+    /// Replaces cliques that overlap `affected_nodes` with `new_cliques`.
     fn update_cliques(&mut self, affected_nodes: &HashSet<Id>, new_cliques: Vec<HashSet<Id>>) {
         // Remove any existing cliques that overlap with the affected region
         // We need to remove these because they may no longer be maximal or may have merged
@@ -148,25 +170,25 @@ where
         self.cliques.extend(new_cliques);
     }
 
-    /// Get the current set of maximal cliques
+    /// Returns all currently detected maximal cliques.
     #[must_use]
     pub fn cliques(&self) -> &[HashSet<Id>] {
         &self.cliques
     }
 
-    /// Get the number of observations in the index
+    /// Returns the number of observations in the index.
     #[must_use]
     pub fn len(&self) -> usize {
         self.compatibility_graph.len()
     }
 
-    /// Check if the index is empty
+    /// Returns `true` if the index has no observations.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.compatibility_graph.is_empty()
     }
 
-    /// Get the compatibility graph (for debugging/analysis)
+    /// Exposes the compatibility graph for debugging and analysis.
     #[must_use]
     pub const fn compatibility_graph(&self) -> &HashMap<Id, HashSet<Id>> {
         &self.compatibility_graph
