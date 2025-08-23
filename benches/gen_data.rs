@@ -5,7 +5,7 @@ use rand::prelude::*;
 use std::{f64::consts::PI, num::NonZeroUsize};
 use uuid::Uuid;
 
-/// Configuration for generating synthetic observation data for benchmarking.
+/// Configuration for synthetic observations used in benchmarks.
 #[derive(Debug, Clone)]
 pub struct Config {
     /// Maximum offset from reference point for scattered points, in meters.
@@ -24,7 +24,7 @@ pub struct Config {
     pub random_seed: u64,
 }
 
-/// Generate a single point randomly distributed within a circle of a given radius
+/// Returns a random point uniformly distributed within a circle of radius `r`.
 fn generate_scattered_point(radius: f64, rng: &mut impl Rng) -> (f64, f64) {
     fn limit_precision(value: f64) -> f64 {
         (value * 1e10).round() / 1e10
@@ -38,15 +38,13 @@ fn generate_scattered_point(radius: f64, rng: &mut impl Rng) -> (f64, f64) {
     (x, y)
 }
 
-/// Generates a random locations within a circular cluster.
+/// Random points within a circular cluster.
 fn generate_scatter(radius: f64, rng: &mut impl Rng) -> impl Iterator<Item = (f64, f64)> {
     std::iter::repeat_with(move || generate_scattered_point(radius, rng))
 }
 
-/// Iterator over clustered positions. Each cluster contains a fixed number of points, centred around a randomly chosen location.
-///
-/// This is a needlessly complicated approach, but it does mean that clustered positions can
-/// be created entirely lazily, with no intermediate memory allocations.
+/// Iterator over clustered positions. Each cluster contains a fixed number of points
+/// around a randomly chosen centre. Generated lazily without intermediate allocation.
 #[derive(Debug)]
 pub struct ClusteredPositionIter<'a, R: Rng> {
     radius: f64,
@@ -100,9 +98,9 @@ where
     }
 }
 
-/// Generates synthetic observations in local (x, y) coordinates for benchmarking.
+/// Generates synthetic observations for benchmarking.
 ///
-/// The output includes a mix of clustered and scattered observations.
+/// The output mixes clustered and scattered observations.
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn generate_observations(config: &Config) -> Vec<Unique<Observation, Uuid>> {

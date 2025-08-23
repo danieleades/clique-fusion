@@ -11,8 +11,7 @@ namespace CliqueFusion
     using CliqueFusion.Native;
 
     /// <summary>
-    /// An index that accumulates observations and extracts maximal cliques from them.
-    /// This class wraps the native Rust-based clique-fusion algorithm via FFI.
+    /// Maintains observations and extracts maximal cliques using the native Rust library.
     /// </summary>
     public sealed class CliqueIndex : IDisposable
     {

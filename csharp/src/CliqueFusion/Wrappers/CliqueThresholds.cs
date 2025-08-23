@@ -7,8 +7,7 @@ namespace CliqueFusion
     using CliqueFusion.Native;
 
     /// <summary>
-    /// Provides predefined chi-squared thresholds for common confidence levels,
-    /// useful when constructing a <see cref="CliqueIndex"/>.
+    /// Chi-squared thresholds for common confidence levels.
     /// </summary>
     public static class CliqueThresholds
     {

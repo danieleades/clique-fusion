@@ -11,18 +11,10 @@ const PSD_EPS_REL: f64 = 1e-12;
 pub struct CovarianceMatrix(Matrix2<f64>);
 
 impl CovarianceMatrix {
-    /// construct a new covariance matrix from its components.
+    /// Creates a covariance matrix from its components.
     ///
-    /// for trusted and correct input, [`Self::new_unchecked`] is marginally more performant.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the given values do not describe a positive semi-definite covariance matrix.
-    ///
-    /// This requires that `xx >= 0.0 && yy >= 0.0 && det >= 0.0`
-    /// where `det = xx * yy - xy * xy`.
-    ///
-    /// It also requires that the inputs be finite.
+    /// Inputs must form a finite, positive semi‑definite matrix. For unchecked
+    /// construction see [`Self::new_unchecked`].
     pub fn new(xx: f64, yy: f64, xy: f64) -> Result<Self, InvalidCovarianceMatrix> {
         // 1) Check for NaN or infinite values first
         if !xx.is_finite() || !yy.is_finite() || !xy.is_finite() {
@@ -49,9 +41,9 @@ impl CovarianceMatrix {
         }
     }
 
-    /// construct a new covariance matrix from its components, without checking the input.
+    /// Creates a covariance matrix from its components without validation.
     ///
-    /// BEWARE: use only for trusted, correct input.
+    /// Use only when inputs are known to be valid.
     ///
     /// # Panics
     ///
@@ -67,7 +59,7 @@ impl CovarianceMatrix {
         }
     }
 
-    /// Return the variance of the error in the x direction
+    /// Variance in the x direction.
     ///
     /// This is guaranteed to be >= 0.0
     #[must_use]
@@ -75,7 +67,7 @@ impl CovarianceMatrix {
         self.0[(0, 0)]
     }
 
-    /// Return the variance of the error in the y direction
+    /// Variance in the y direction.
     ///
     /// This is guaranteed to be >= 0.0
     #[must_use]
@@ -83,40 +75,28 @@ impl CovarianceMatrix {
         self.0[(1, 1)]
     }
 
-    /// Return the covariance between the x and y directions
-    ///
-    /// note that xy == yx (covariance matrices are symmetric).
+    /// Covariance between the x and y directions.
     #[must_use]
     pub fn xy(&self) -> f64 {
         self.0[(0, 1)]
     }
 
-    /// The determinant of the covariance matrix
+    /// The determinant of the covariance matrix.
     #[must_use]
     pub fn determinant(&self) -> f64 {
         self.0.determinant()
     }
 
-    /// The identity matrix
+    /// Returns the identity matrix.
     #[must_use]
     pub fn identity() -> Self {
         Self(Matrix2::identity())
     }
 
-    /// Create a covariance matrix for a circular 95% confidence interval with given radius.
-    ///
-    /// This is a legacy compatibility constructor that creates an isotropic covariance matrix
-    /// where the 95% confidence ellipse is a circle with the specified radius.
-    ///
-    /// # Arguments
-    /// * `radius` - The radius of the 95% confidence circle
-    ///
-    /// # Returns
-    /// A covariance matrix representing circular uncertainty with the given radius
+    /// Returns an isotropic covariance matrix whose 95 % confidence circle has radius `r`.
     ///
     /// # Errors
-    ///
-    /// Returns an error if the radius is less than 0.
+    /// Returns an error if `r` is negative or not finite.
     pub fn from_circular_95_confidence(radius: f64) -> Result<Self, InvalidRadius> {
         if !radius.is_finite() || radius < 0.0 {
             return Err(InvalidRadius(radius));
@@ -130,7 +110,7 @@ impl CovarianceMatrix {
         Ok(Self(Matrix2::from_diagonal_element(variance)))
     }
 
-    /// The maximum eigenvalue of the covariance matrix
+    /// Maximum eigenvalue of the covariance matrix.
     #[must_use]
     pub fn max_variance(&self) -> f64 {
         let trace = self.0.trace();
@@ -139,18 +119,14 @@ impl CovarianceMatrix {
         0.5 * (trace + discrim)
     }
 
-    /// Safely compute the inverse of the covariance matrix, handling different cases gracefully
+    /// Attempts to invert the matrix.
     ///
-    /// # Returns
-    /// - `Some(CovarianceMatrix)` for non-zero matrices
-    /// - `None` for zero matrices
-    ///
-    ///
-    /// # Examples
+    /// Returns `None` for a zero matrix and uses a pseudo-inverse if the matrix is
+    /// singular. Example:
     /// ```
     /// use clique_fusion::CovarianceMatrix;
     /// let cov = CovarianceMatrix::new(4.0, 1.0, 0.5).unwrap();
-    /// let inv = cov.safe_inverse().unwrap();
+    /// assert!(cov.safe_inverse().is_some());
     /// ```
     #[allow(clippy::missing_panics_doc)]
     #[must_use]

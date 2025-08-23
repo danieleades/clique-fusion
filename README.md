@@ -12,6 +12,27 @@ A single object may be observed multiple times — by different sensors, at diff
 
 This library identifies and groups observations that are statistically consistent with originating from the same true object.
 
+```rust
+use clique_fusion::{Observation, Unique, CliqueIndex, CHI2_2D_CONFIDENCE_95};
+
+let obs1 = Observation::builder(0.0, 0.0)
+    .circular_95_confidence_error(5.0)
+    .unwrap()
+    .build();
+let obs2 = Observation::builder(1.0, 0.0)
+    .circular_95_confidence_error(5.0)
+    .unwrap()
+    .build();
+
+let mut index = CliqueIndex::new(CHI2_2D_CONFIDENCE_95);
+index.insert(Unique { id: 1, data: obs1 });
+index.insert(Unique { id: 2, data: obs2 });
+
+for clique in index.cliques() {
+    println!("clique: {:?}", clique);
+}
+```
+
 ---
 
 ## 🔍 Fusion Logic
@@ -80,4 +101,4 @@ See the [C# bindings contributing guide](./csharp/CONTRIBUTING.md) and [the C# b
 
 ## 📜 Licensing
 
-This project is publicly available under the **GNU General Public License v3.0**. It may optionally be distributed under the **MIT license by commercial arrangement.
+This project is available under the terms of the [GNU General Public License v3.0](LICENSE). Commercial users may request an alternative [MIT licence](LICENSING.md).

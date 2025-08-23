@@ -1,19 +1,21 @@
 use std::collections::{HashMap, HashSet};
 
-/// Finds all maximal cliques in an undirected graph using the Bron-Kerbosch algorithm with pivoting.
+/// Returns all maximal cliques of an undirected graph.
 ///
-/// A maximal clique is a complete subgraph (all vertices connected to each other) that cannot
-/// be extended by adding another vertex. This implementation uses pivoting optimization to
-/// reduce the search space significantly.
+/// A maximal clique is a set of vertices that are all pairwise connected and cannot be
+/// extended by adding another vertex. The implementation uses the Bron–Kerbosch algorithm
+/// with pivoting to reduce the search space.
 ///
-/// # Arguments
-/// * `graph` - Adjacency list representation where each vertex maps to its neighbors
-///
-/// # Returns
-/// Vector of all maximal cliques, where each clique is represented as a [`HashSet`] of vertex IDs
-///
-/// # Time Complexity
-/// O(3^(n/3)) worst case, but typically much better with pivoting for sparse graphs
+/// # Example
+/// ```ignore
+/// use std::collections::{HashMap, HashSet};
+/// let graph = HashMap::from([
+///     (0, HashSet::from([1])),
+///     (1, HashSet::from([0])),
+/// ]);
+/// let cliques = find_maximal_cliques(&graph);
+/// assert_eq!(cliques[0], HashSet::from([0,1]));
+/// ```
 pub fn find_maximal_cliques<Id>(graph: &HashMap<Id, HashSet<Id>>) -> Vec<HashSet<Id>>
 where
     Id: Copy + Eq + std::hash::Hash,
@@ -34,13 +36,7 @@ where
     cliques
 }
 
-/// Optimized Bron-Kerbosch implementation with strategic pivoting.
-///
-/// This version includes several optimizations:
-/// - Early termination checks
-/// - Optimal pivot selection to minimize branching
-/// - Efficient set operations using iterators where possible
-/// - Memory-conscious cloning patterns
+/// Bron–Kerbosch search with pivoting and small optimisations.
 fn bron_kerbosch_pivot<Id>(
     graph: &HashMap<Id, HashSet<Id>>,
     r: HashSet<Id>,
@@ -89,15 +85,7 @@ fn bron_kerbosch_pivot<Id>(
     }
 }
 
-/// Selects the optimal pivot vertex to minimize recursive branching.
-///
-/// Strategy: Choose the vertex from P ∪ X with maximum degree in the induced subgraph.
-/// This maximizes the number of vertices we can skip (those connected to the pivot).
-///
-/// # Performance Notes
-/// - Uses iterator chains to avoid temporary allocations
-/// - Caches the union computation for efficiency
-/// - Handles empty sets gracefully
+/// Selects a pivot from `p ∪ x` with the most neighbours to reduce branching.
 fn select_optimal_pivot<Id>(
     graph: &HashMap<Id, HashSet<Id>>,
     p: &HashSet<Id>,
