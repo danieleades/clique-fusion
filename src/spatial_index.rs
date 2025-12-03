@@ -159,7 +159,8 @@ where
     ///
     /// The result is an undirected graph represented as an adjacency list, where each node is an
     /// observation ID and edges represent pairs of observations whose error ellipses mutually include
-    /// the other's position under the given chi-squared threshold.
+    /// the other's position under the given chi-squared threshold. Observations with no compatible
+    /// neighbours are intentionally omitted to avoid emitting O(n) singleton cliques.
     pub fn compatibility_graph(
         &self,
         chi2_threshold: f64,

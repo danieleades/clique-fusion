@@ -88,13 +88,18 @@ where
                     .insert(id);
             }
 
-            // Calculate affected region: new node + its direct neighbors (1-hop)
-            // This is sufficient because:
-            // - New node can only participate in cliques with its direct neighbors
-            // - Only cliques containing the new node's neighbors can be affected
-            // - Mutual compatibility ensures no "action at a distance" effects
+            // Calculate affected region: closed neighbourhood of nodes whose adjacency changed
+            // (the new node and all nodes we connected it to). Any clique that intersects this
+            // set can change maximality because new edges may merge or supersede prior cliques.
             let mut affected = direct_neighbours;
             affected.insert(id); // New node is guaranteed to be in the graph at this point
+            // Include existing neighbours of all changed nodes so we retain cliques such as
+            // {A,B} where only A gained a new neighbour.
+            for &node in &affected.clone() {
+                if let Some(neighbours) = self.compatibility_graph.get(&node) {
+                    affected.extend(neighbours.iter().copied());
+                }
+            }
 
             // Extract subgraph containing only affected nodes and their internal connections
             let subgraph = self.extract_subgraph(&affected).collect();
@@ -149,18 +154,29 @@ where
     }
 
     /// Get the current set of maximal cliques
+    ///
+    /// Singleton cliques (isolated observations) are intentionally excluded to avoid
+    /// generating O(n) trivial results. Only cliques containing two or more
+    /// mutually compatible observations are returned.
     #[must_use]
     pub fn cliques(&self) -> &[HashSet<Id>] {
         &self.cliques
     }
 
     /// Get the number of observations in the index
+    ///
+    /// Note: this counts only observations that have at least one compatible neighbour
+    /// (i.e. members of the compatibility graph). Isolated observations are tracked in
+    /// the spatial index but deliberately omitted here for performance.
     #[must_use]
     pub fn len(&self) -> usize {
         self.compatibility_graph.len()
     }
 
     /// Check if the index is empty
+    ///
+    /// Returns true only when there are no mutually compatible pairs. If you insert
+    /// observations that are all isolated, this will still return true.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.compatibility_graph.is_empty()
@@ -175,9 +191,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
+    use std::collections::{BTreeSet, HashMap, HashSet};
 
-    use crate::{CHI2_2D_CONFIDENCE_95, CliqueIndex, Observation, Unique};
+    use crate::{CHI2_2D_CONFIDENCE_95, CliqueIndex, CovarianceMatrix, Observation, Unique};
 
     #[test]
     fn simple_cluster() {
@@ -295,5 +311,75 @@ mod tests {
 
         assert_eq!(index1.cliques, index2.cliques);
         assert_eq!(index1.compatibility_graph, index2.compatibility_graph);
+    }
+
+    #[test]
+    fn incremental_insert_rebuilds_neighbour_cliques() {
+        // Regression for the incremental-update bug: inserting a node connected to two existing
+        // vertices must not drop cliques that involve their other neighbours.
+        // Geometry yields edges AB, BC, AD, CD but not AC or BD (distance > 95% threshold)
+        //          C (3,3)
+        //          |
+        // A (0,0)  B (0,3)   D (3,0)
+        // Batch mode finds four edge cliques: {A,B}, {B,C}, {A,D}, {C,D}.
+        // Previously the incremental path (A,B,C first, then D) recomputed only on {A,C,D},
+        // so {A,B} and {B,C} were removed and never rebuilt. The fix recomputes the closed
+        // neighbourhood of changed nodes, so the incremental result matches batch.
+        let chi2 = CHI2_2D_CONFIDENCE_95;
+
+        let obs_a = Unique {
+            data: Observation::builder(0.0, 0.0)
+                .error(CovarianceMatrix::identity())
+                .build(),
+            id: 0,
+        };
+        let obs_b = Unique {
+            data: Observation::builder(0.0, 3.0)
+                .error(CovarianceMatrix::identity())
+                .build(),
+            id: 1,
+        };
+        let obs_c = Unique {
+            data: Observation::builder(3.0, 3.0)
+                .error(CovarianceMatrix::identity())
+                .build(),
+            id: 2,
+        };
+        let obs_d = Unique {
+            data: Observation::builder(3.0, 0.0)
+                .error(CovarianceMatrix::identity())
+                .build(),
+            id: 3,
+        };
+
+        // Baseline: batch computation finds all 4 edge cliques in the 4-cycle graph
+        let batch_index = CliqueIndex::from_observations(
+            vec![obs_a.clone(), obs_b.clone(), obs_c.clone(), obs_d.clone()],
+            chi2,
+        );
+        let expected = canonical_cliques(batch_index.cliques());
+
+        // Incremental path: add A, B, C then insert D (connected to A and C only)
+        let mut incremental = CliqueIndex::new(chi2);
+        for obs in [&obs_a, &obs_b, &obs_c] {
+            incremental.insert(obs.clone());
+        }
+        incremental.insert(obs_d);
+
+        let incremental_cliques = canonical_cliques(incremental.cliques());
+
+        assert_eq!(
+            incremental_cliques, expected,
+            "incremental maintenance should match batch computation, including neighbour cliques",
+        );
+    }
+
+    fn canonical_cliques(cliques: &[HashSet<i32>]) -> Vec<BTreeSet<i32>> {
+        let mut sorted: Vec<_> = cliques
+            .iter()
+            .map(|clique| clique.iter().copied().collect::<BTreeSet<_>>())
+            .collect();
+        sorted.sort();
+        sorted
     }
 }

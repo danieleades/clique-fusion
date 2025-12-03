@@ -16,11 +16,9 @@ This library identifies and groups observations that are statistically consisten
 
 ## 🔍 Fusion Logic
 
-Two observations are considered compatible if their **difference is plausible** under the assumption that both are independent Gaussian samples from the same true position.
+Two observations are considered compatible if their positional **difference is plausible** under the assumption that both are independent Gaussian samples from the same true position.
 
 This is tested using the **Mahalanobis distance** between their positions under the **sum of their covariance matrices**. This approach is statistically optimal and robust to asymmetry or unequal sensor precision.
-
-For example, if one observation has a coarse uncertainty and the other is precise, the fused compatibility test still produces a correct result.
 
 ---
 
@@ -45,13 +43,13 @@ The fusion process builds a compatibility graph and extracts cliques:
 3. **Graph Construction**: Build an undirected graph linking all mutually compatible observations.
 4. **Clique Detection**: Extract maximal cliques — each clique represents a group of mutually consistent observations that could correspond to a single real-world object.
 
+> Singleton cliques are deliberately skipped: observations with no mutually compatible neighbours stay in the spatial index but do not appear in the compatibility graph or clique list, avoiding O(n) trivial cliques in sparse datasets.
+
 ---
 
 ## 🚀 Performance Notes
 
 To avoid unnecessary comparisons, the library uses a spatial index and computes a maximum compatibility radius for each observation based on its own uncertainty and the maximum variance in the dataset.
-
-> While the design supports future optimisation via **variance-aware ordering** (processing high-uncertainty observations first), this has not yet been implemented. Benchmarking will be used to determine whether the added complexity provides a meaningful performance benefit in practice.
 
 ---
 
@@ -61,6 +59,77 @@ This library supports two usage modes:
 
 - **Batch Mode**: Efficiently ingest a complete set of observations and compute all cliques in one pass.
 - **Incremental Mode**: Insert observations one-by-one, maintaining compatibility graphs and clique structure on the fly — suitable for real-time or streaming applications.
+
+---
+
+## 💡 Example Usage
+
+### Batch Mode
+
+```rust
+use clique_fusion::{CliqueIndex, Observation, Unique, CHI2_2D_CONFIDENCE_95};
+
+// Create observations with positions and circular 95% confidence error
+let observations = vec![
+    Unique {
+        data: Observation::builder(10.0, 20.0)
+            .circular_95_confidence_error(5.0)
+            .unwrap()
+            .build(),
+        id: 1,
+    },
+    Unique {
+        data: Observation::builder(10.5, 20.2)
+            .circular_95_confidence_error(5.0)
+            .unwrap()
+            .build(),
+        id: 2,
+    },
+    Unique {
+        data: Observation::builder(100.0, 200.0)
+            .circular_95_confidence_error(5.0)
+            .unwrap()
+            .build(),
+        id: 3,
+    },
+];
+
+// Build index from observations at once
+let index = CliqueIndex::from_observations(observations, CHI2_2D_CONFIDENCE_95);
+
+// Retrieve cliques (groups of mutually compatible observations)
+for clique in index.cliques() {
+    println!("Clique: {:?}", clique);
+}
+```
+
+### Incremental Mode
+
+```rust
+use clique_fusion::{CliqueIndex, Observation, Unique, CHI2_2D_CONFIDENCE_95};
+
+let mut index = CliqueIndex::new(CHI2_2D_CONFIDENCE_95);
+
+// Add observations one at a time
+index.insert(Unique {
+    data: Observation::builder(10.0, 20.0)
+        .circular_95_confidence_error(5.0)
+        .unwrap()
+        .build(),
+    id: 1,
+});
+
+index.insert(Unique {
+    data: Observation::builder(10.5, 20.2)
+        .circular_95_confidence_error(5.0)
+        .unwrap()
+        .build(),
+    id: 2,
+});
+
+// Cliques are maintained in real-time
+println!("Current cliques: {:?}", index.cliques());
+```
 
 ---
 
@@ -80,4 +149,4 @@ See the [C# bindings contributing guide](./csharp/CONTRIBUTING.md) and [the C# b
 
 ## 📜 Licensing
 
-This project is publicly available under the **GNU General Public License v3.0**. It may optionally be distributed under the **MIT license by commercial arrangement.
+This project is publicly available under the **GNU General Public License v3.0**. It may optionally be distributed under the MIT license by commercial arrangement.
