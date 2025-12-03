@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>CliqueFusion</PackageId>
+    <PackageVersion>0.1.0</PackageVersion>
+    <Authors>Your Name</Authors>
+    <Description>C# bindings for the clique-fusion Rust library</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+    <!-- Relative path to native library directory -->
+    <RuntimesPath>$(MSBuildProjectDirectory)/runtimes</RuntimesPath>
+  </PropertyGroup>
+
+  <!-- Include manually built native libraries -->
+  <ItemGroup>
+    <Content Include="$(RuntimesPath)/**/*" Condition="Exists('$(RuntimesPath)')">
+      <PackagePath>runtimes/%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+<Target Name="BuildNativeLibraries" BeforeTargets="Build">
+  <Exec Command="./build-native.sh" WorkingDirectory="$(MSBuildProjectDirectory)" />
+</Target>
+
+</Project>

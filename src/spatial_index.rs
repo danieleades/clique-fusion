@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use rstar::{AABB, PointDistance, RTree, RTreeObject};
 
 use crate::Observation;
 
 /// A wrapper type that assigns a unique identifier to its payload.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unique<T, Id> {
     /// The wrapped payload.
     pub data: T,
@@ -35,16 +35,37 @@ impl<Id> PointDistance for Unique<Observation, Id> {
 #[derive(Debug)]
 pub struct SpatialIndex<Id> {
     tree: RTree<Unique<Observation, Id>>,
+
+    /// The maximum variance of all observations in the index.
+    ///
+    /// This is used to determine the search radius needed to guarantee that all possible
+    /// compatible neighbours have been considered when searching for neighbours.
+    ///
+    /// TODO: this could be optimised further by:
+    ///
+    /// - using a heap to track the variances in order
+    /// - searching in descending order of variance
+    /// - popping elements from the heap as they are searched
+    /// - shrinking the search radius to match the updated maximum variance as you go
+    ///
+    /// benchmarking on large, representative datasets needed to determine whether this is worth it!
+    max_variance: f64,
 }
 
 impl<Id> Default for SpatialIndex<Id> {
     fn default() -> Self {
         let tree = RTree::default();
-        Self { tree }
+        Self {
+            tree,
+            max_variance: 0.0,
+        }
     }
 }
 
-impl<Id> SpatialIndex<Id> {
+impl<Id> SpatialIndex<Id>
+where
+    Id: PartialEq,
+{
     /// Construct a spatial index from an initial list of observations.
     ///
     /// This is significantly faster than inserting observations individually via [`Self::insert`],
@@ -53,8 +74,13 @@ impl<Id> SpatialIndex<Id> {
     /// See also: [`Self::insert`] for incremental use cases.
     #[must_use]
     pub fn from_observations(observations: Vec<Unique<Observation, Id>>) -> Self {
+        let max_variance = observations
+            .iter()
+            .map(|obs| obs.data.error_covariance().max_variance())
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(0.0);
         let tree = RTree::bulk_load(observations);
-        Self { tree }
+        Self { tree, max_variance }
     }
 
     /// Insert a single observation into the spatial index.
@@ -65,8 +91,19 @@ impl<Id> SpatialIndex<Id> {
     /// See also: [`Self::from_observations`] for batch construction.
     ///
     /// # Panics
-    /// Panics if an observation with the same ID already exists in the index.
+    ///
+    /// Panics in debug builds if an observation with the same ID already exists in the index.
     pub fn insert(&mut self, observation: Unique<Observation, Id>) {
+        debug_assert!(
+            !self.tree.contains(&observation),
+            "attempted to insert duplicate observation"
+        );
+
+        // Update the maximum variance
+        self.max_variance = self
+            .max_variance
+            .max(observation.data.error_covariance().max_variance());
+
         self.tree.insert(observation);
     }
 }
@@ -93,7 +130,9 @@ impl<Id> SpatialIndex<Id> {
     where
         Id: PartialEq,
     {
-        let radius = query.data.max_compatibility_radius(chi2_threshold);
+        let radius = query
+            .data
+            .max_compatibility_radius(chi2_threshold, self.max_variance);
         let p = query.data.position();
 
         self.tree
@@ -107,7 +146,7 @@ impl<Id> SpatialIndex<Id> {
             })
             .filter(move |obs| {
                 obs.data
-                    .is_mutually_compatible_with(&query.data, chi2_threshold)
+                    .is_compatible_with(&query.data, chi2_threshold)
             })
     }
 }
@@ -121,20 +160,22 @@ where
     /// The result is an undirected graph represented as an adjacency list, where each node is an
     /// observation ID and edges represent pairs of observations whose error ellipses mutually include
     /// the other's position under the given chi-squared threshold.
-    #[must_use]
-    pub fn compatibility_graph(&self, chi2_threshold: f64) -> HashMap<Id, HashSet<Id>> {
-        let mut graph = HashMap::new();
-
-        for obs in &self.tree {
-            let compatibles = self
+    pub fn compatibility_graph(
+        &self,
+        chi2_threshold: f64,
+    ) -> impl Iterator<Item = (Id, HashSet<Id>)> {
+        self.tree.iter().filter_map(move |obs| {
+            let compatibles: HashSet<_> = self
                 .find_compatible(obs, chi2_threshold)
                 .map(|other| other.id)
-                .collect::<HashSet<_>>();
+                .collect();
 
-            graph.insert(obs.id, compatibles);
-        }
-
-        graph
+            if compatibles.is_empty() {
+                None
+            } else {
+                Some((obs.id, compatibles))
+            }
+        })
     }
 }
 
@@ -259,5 +300,20 @@ mod tests {
             !compatibles.iter().any(|obs| obs.id == obs3.id),
             "Should not include obs3 (too far)"
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "attempted to insert duplicate observation")]
+    fn disallows_duplicates() {
+        let mut spatial_index = SpatialIndex::default();
+        let observation = Unique {
+            data: Observation::builder(0.0, 0.0)
+                .circular_95_confidence_error(5.0)
+                .unwrap()
+                .build(),
+            id: 0,
+        };
+        spatial_index.insert(observation.clone());
+        spatial_index.insert(observation);
     }
 }

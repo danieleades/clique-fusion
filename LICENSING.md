@@ -1,6 +1,8 @@
 # Licensing
 
-Clique Fusion is available under two licensing options:
+These licensing terms apply to all source code in this repository, including the Rust core and the C# bindings under `csharp/`.
+
+This project is available under two licensing options:
 
 ## Option 1: GNU General Public License v3.0 (Default)
 
@@ -9,11 +11,11 @@ Clique Fusion is available under two licensing options:
 **Key requirements:**
 
 - You can use, modify, and distribute this software freely
-- Any software that incorporates Contact Fusion must also be licensed under GPL v3
+- Any software that incorporates Clique Fusion must also be licensed under GPL v3
 - You must provide source code to users of your software
 - See [LICENSE](LICENSE) for full terms
 
-**This is the default license** - if you're using Contact Fusion without a separate commercial agreement, you're using it under GPL v3.
+**This is the default license** - if you're using Clique Fusion without a separate commercial agreement, you're using it under GPL v3.
 
 ## Option 2: Commercial License
 
@@ -21,7 +23,7 @@ Clique Fusion is available under two licensing options:
 
 **What it provides:**
 
-- Permission to use Contact Fusion in proprietary/closed-source software
+- Permission to use Clique Fusion in proprietary/closed-source software
 - No requirement to license your software under GPL v3
 - No obligation to provide source code to your users
 
@@ -44,7 +46,7 @@ Clique Fusion is available under two licensing options:
 
 - You're building a proprietary product
 - You can't or don't want to release your source code
-- You need to distribute Contact Fusion as part of closed-source software
+- You need to distribute Clique Fusion as part of closed-source software
 - You're unsure about GPL v3 compatibility with your project
 
 ## Questions?

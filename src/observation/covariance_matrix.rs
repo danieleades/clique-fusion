@@ -1,8 +1,13 @@
+use std::ops::Add;
+
 use super::CHI2_2D_CONFIDENCE_95;
 use nalgebra::Matrix2;
 
+/// Relative error to use for checking matrices are positive semi-definite
+const PSD_EPS_REL: f64 = 1e-12;
+
 /// A covariance matrix, used to represent the positional error ellipse of an observation.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CovarianceMatrix(Matrix2<f64>);
 
 impl CovarianceMatrix {
@@ -19,13 +24,25 @@ impl CovarianceMatrix {
     ///
     /// It also requires that the inputs be finite.
     pub fn new(xx: f64, yy: f64, xy: f64) -> Result<Self, InvalidCovarianceMatrix> {
-        // Check for NaN or infinite values first
+        // 1) Check for NaN or infinite values first
         if !xx.is_finite() || !yy.is_finite() || !xy.is_finite() {
             return Err(InvalidCovarianceMatrix { xx, yy, xy });
         }
 
+        // 2) Scale-aware tolerances (dimensionally consistent)
+        //    - diagonals have units of variance
+        //    - determinant has units of variance^2
+        let scale = xx.abs().max(yy.abs()).max(xy.abs());
+        // if scale == 0, matrix must be exactly zero to be valid; tolerances collapse to 0
+        let diag_tol = PSD_EPS_REL * scale;
+        let det_tol = PSD_EPS_REL * scale * scale;
+
         let det = xx.mul_add(yy, -(xy * xy));
-        if xx >= 0.0 && yy >= 0.0 && det >= 0.0 {
+
+        let diag_ok = xx >= -diag_tol && yy >= -diag_tol;
+        let det_ok = det >= -det_tol;
+
+        if diag_ok && det_ok {
             Ok(Self(Matrix2::new(xx, xy, xy, yy)))
         } else {
             Err(InvalidCovarianceMatrix { xx, yy, xy })
@@ -152,17 +169,17 @@ impl CovarianceMatrix {
 
         Some(
             svd.pseudo_inverse(1e-12)
-                .expect("unable to calculate pseudoinverse"),
+                .expect("unable to calculate pseudo-inverse"),
         )
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone, Copy)]
 #[error("radius must be >=0.0 (got {0})")]
 pub struct InvalidRadius(f64);
 
 /// The error returned when the given variances do not form a valid covariance matrix
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone, Copy)]
 #[error("not a valid positive semi-definite matrix (xx: {xx}, yy: {yy}, xy: {xy})")]
 pub struct InvalidCovarianceMatrix {
     xx: f64,
@@ -176,11 +193,18 @@ impl From<CovarianceMatrix> for Matrix2<f64> {
     }
 }
 
+impl Add for CovarianceMatrix {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self(self.0 + other.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use nalgebra::ComplexField;
 
     // Existing tests...
     #[test]
@@ -215,7 +239,7 @@ mod tests {
     #[test]
     fn max_variance_correct_for_off_diagonal_matrix() {
         let cov = CovarianceMatrix::new_unchecked(4.0, 1.0, 1.0);
-        let trace = 4.0 + 1.0;
+        let trace: f64 = 4.0 + 1.0;
         let det = 4.0f64.mul_add(1.0, -(1.0 * 1.0));
         let discrim = trace.mul_add(trace, -(4.0 * det)).sqrt();
         let expected = 0.5 * (trace + discrim);
@@ -412,30 +436,6 @@ mod tests {
         assert!(cov.yy() >= 0.0);
     }
 
-    // Additional boundary condition tests
-    #[test]
-    fn covariance_matrix_boundary_conditions() {
-        // Test matrices that are exactly on the boundary of positive semi-definiteness
-
-        // Determinant exactly zero (singular but valid)
-        assert!(CovarianceMatrix::new(1.0, 1.0, 1.0).is_ok()); // det = 1*1 - 1*1 = 0
-
-        // One variance zero, other positive
-        assert!(CovarianceMatrix::new(0.0, 1.0, 0.0).is_ok());
-        assert!(CovarianceMatrix::new(1.0, 0.0, 0.0).is_ok());
-
-        // Test with correlation coefficient at boundary (|xy| = sqrt(xx * yy))
-        let xx = 4.0;
-        let yy = 9.0;
-        let xy_max = (xx * yy).sqrt(); // Perfect correlation
-        assert!(CovarianceMatrix::new(xx, yy, xy_max).is_ok());
-        assert!(CovarianceMatrix::new(xx, yy, -xy_max).is_ok());
-
-        // Just over the boundary (should fail)
-        let xy_over = f64::EPSILON.mul_add(10.0, xy_max);
-        assert!(CovarianceMatrix::new(xx, yy, xy_over).is_err());
-    }
-
     // Test accessor methods with edge cases
     #[test]
     fn accessor_methods_edge_cases() {
@@ -476,5 +476,115 @@ mod tests {
             // Test safe_inverse doesn't panic
             let _inv = cov.safe_inverse();
         }
+    }
+
+    #[test]
+    fn constructor_accepts_small_negative_det() {
+        let xx: f64 = 4.0;
+        let yy: f64 = 9.0;
+        let scale: f64 = 9.0;
+        let det_tol: f64 = PSD_EPS_REL * scale * scale;
+
+        // Safely within tolerance
+        let target_det: f64 = -0.5 * det_tol;
+
+        // xy' so that xx*yy - xy'^2 = target_det
+        let xy_pert: f64 = (xx * yy - target_det).sqrt();
+
+        let cov = CovarianceMatrix::new(xx, yy, xy_pert);
+        assert!(
+            cov.is_ok(),
+            "should accept det slightly below zero within tolerance"
+        );
+    }
+
+    #[test]
+    fn constructor_scales_with_magnitude() {
+        for &k in &[1e-9_f64, 1.0_f64, 1e9_f64] {
+            let scale: f64 = k;
+            let diag_tol: f64 = PSD_EPS_REL * scale;
+
+            // Within tolerance (accept)
+            let xx_within: f64 = -0.9 * diag_tol;
+            let cov_ok = CovarianceMatrix::new(xx_within, scale, 0.0);
+            assert!(
+                cov_ok.is_ok(),
+                "should accept tiny negative diagonal at scale {k}"
+            );
+
+            // Beyond tolerance (reject)
+            let xx_beyond: f64 = -10.0 * diag_tol;
+            let cov_bad = CovarianceMatrix::new(xx_beyond, scale, 0.0);
+            assert!(
+                cov_bad.is_err(),
+                "should reject negative diagonal beyond tolerance at scale {k}"
+            );
+        }
+    }
+
+    #[test]
+    fn constructor_rejects_clearly_invalid() {
+        // Negative variance far beyond tolerance
+        assert!(CovarianceMatrix::new(-1e-3, 1.0, 0.0).is_err());
+
+        // |xy| > sqrt(xx*yy) by a large margin -> strongly negative det
+        let xx = 1.0;
+        let yy = 1.0;
+        let xy = 2.0; // det = 1 - 4 = -3
+        assert!(CovarianceMatrix::new(xx, yy, xy).is_err());
+    }
+
+    #[test]
+    fn constructor_zero_scale_behaviour() {
+        // Exactly zero matrix remains valid
+        assert!(CovarianceMatrix::new(0.0, 0.0, 0.0).is_ok());
+
+        // With scale = 0, tolerances are zero; any negative diagonal must be rejected
+        assert!(CovarianceMatrix::new(-1e-16, 0.0, 0.0).is_err());
+    }
+
+    #[test]
+    fn tolerance_does_not_break_max_variance_or_inverse() {
+        // Nearly singular but within tolerance
+        let xx: f64 = 1.0;
+        let yy: f64 = 1.0;
+        let xy: f64 = (xx * yy - 1e-20).sqrt(); // det ≈ 1e-20
+        let cov = CovarianceMatrix::new(xx, yy, xy).unwrap();
+
+        // Numerical functions remain stable
+        let mv = cov.max_variance();
+        assert!(mv.is_finite() && mv >= 0.0);
+
+        // safe_inverse should produce Some (near singular -> pseudo-inverse path is fine)
+        let inv = cov.safe_inverse();
+        assert!(inv.is_some());
+    }
+
+    #[test]
+    fn covariance_matrix_boundary_conditions() {
+        // Determinant exactly zero (singular but valid)
+        assert!(CovarianceMatrix::new(1.0, 1.0, 1.0).is_ok());
+
+        // One variance zero, other positive
+        assert!(CovarianceMatrix::new(0.0, 1.0, 0.0).is_ok());
+        assert!(CovarianceMatrix::new(1.0, 0.0, 0.0).is_ok());
+
+        // Boundary correlation (|xy| = sqrt(xx * yy))
+        let xx: f64 = 4.0;
+        let yy: f64 = 9.0;
+        let xy_max: f64 = (xx * yy).sqrt();
+        assert!(CovarianceMatrix::new(xx, yy, xy_max).is_ok());
+        assert!(CovarianceMatrix::new(xx, yy, -xy_max).is_ok());
+
+        // Exceed boundary by enough to violate the tolerant det check
+        let scale: f64 = f64::max(xx.abs(), f64::max(yy.abs(), xy_max.abs())); // 9.0
+        let det_tol: f64 = PSD_EPS_REL * scale * scale;
+        let delta: f64 = 1.1 * det_tol / (2.0 * xy_max); // ensures det ≈ -2*xy_max*delta < -det_tol
+
+        let xy_over_pos: f64 = xy_max + delta;
+        let xy_over_neg: f64 = -xy_max - delta;
+
+        assert!(CovarianceMatrix::new(xx, yy, xy_over_pos).is_err());
+        assert!(CovarianceMatrix::new(xx, yy, xy_over_neg).is_err());
     }
 }
