@@ -72,6 +72,174 @@ This library supports two usage modes:
 
 ---
 
+## 💡 Examples
+
+### Creating Observations with Circular Error
+
+Create an observation with a circular 95% confidence error region:
+
+```rust
+use clique_fusion::Observation;
+
+// Observation at (10.5, 20.3) with a 5-meter circular 95% confidence error
+let obs = Observation::builder(10.5, 20.3)
+    .circular_95_confidence_error(5.0)
+    .unwrap()
+    .build();
+
+assert_eq!(obs.x(), 10.5);
+assert_eq!(obs.y(), 20.3);
+```
+
+### Constructing a Covariance Matrix
+
+Create a covariance matrix representing positional uncertainty:
+
+```rust
+use clique_fusion::{CovarianceMatrix, Observation};
+
+// 2x2 covariance matrix with:
+// - variance in x direction: 4.0
+// - variance in y direction: 2.0
+// - covariance between x and y: 0.5
+let cov = CovarianceMatrix::new(4.0, 2.0, 0.5).unwrap();
+
+assert_eq!(cov.xx(), 4.0); // x variance
+assert_eq!(cov.yy(), 2.0); // y variance
+assert_eq!(cov.xy(), 0.5); // x-y covariance
+
+// Create an observation with this custom covariance
+let obs = Observation::builder(5.0, -3.0)
+    .error(cov)
+    .build();
+```
+
+### Testing Observation Compatibility
+
+Check if two observations are statistically compatible (could originate from the same object):
+
+```rust
+use clique_fusion::{Observation, CHI2_2D_CONFIDENCE_95};
+
+let obs1 = Observation::builder(0.0, 0.0)
+    .circular_95_confidence_error(1.0)
+    .unwrap()
+    .build();
+
+let obs2 = Observation::builder(1.5, 0.0)
+    .circular_95_confidence_error(1.0)
+    .unwrap()
+    .build();
+
+// Test compatibility at 95% confidence level
+if obs1.is_compatible_with(&obs2, CHI2_2D_CONFIDENCE_95) {
+    println!("Observations are likely from the same object");
+} else {
+    println!("Observations are likely from different objects");
+}
+```
+
+### Batch Fusion
+
+Fuse a batch of observations into groups (cliques) representing distinct objects:
+
+```rust
+use clique_fusion::{Observation, CliqueIndex, CHI2_2D_CONFIDENCE_95, Unique};
+
+// Create observations from multiple sensors
+let observations = vec![
+    Unique {
+        data: Observation::builder(0.0, 0.0)
+            .circular_95_confidence_error(2.0)
+            .unwrap()
+            .build(),
+        id: "sensor_1:obs_1"
+    },
+    Unique {
+        data: Observation::builder(0.5, 0.3)
+            .circular_95_confidence_error(2.0)
+            .unwrap()
+            .build(),
+        id: "sensor_2:obs_1"
+    },
+    Unique {
+        data: Observation::builder(50.0, 50.0)
+            .circular_95_confidence_error(2.0)
+            .unwrap()
+            .build(),
+        id: "sensor_3:obs_1"
+    },
+];
+
+// Create clique index in batch mode (more efficient than incremental)
+let index = CliqueIndex::from_observations(observations, CHI2_2D_CONFIDENCE_95);
+
+// Retrieve cliques (groups of compatible observations)
+let cliques = index.cliques();
+println!("Found {} distinct objects", cliques.len());
+```
+
+### Incremental Fusion
+
+Add observations one-by-one to maintain a live fusion state:
+
+```rust
+use clique_fusion::{Observation, CliqueIndex, CHI2_2D_CONFIDENCE_95, Unique};
+
+// Start with an empty index
+let mut index = CliqueIndex::new(CHI2_2D_CONFIDENCE_95);
+
+// Add observations as they arrive
+for (id, x, y) in &[
+    ("obs_1", 10.0, 10.0),
+    ("obs_2", 10.5, 10.3),
+    ("obs_3", 100.0, 100.0),
+] {
+    let obs = Observation::builder(*x, *y)
+        .circular_95_confidence_error(1.5)
+        .unwrap()
+        .build();
+
+    index.insert(Unique { data: obs, id: id });
+}
+
+// Query results after each insertion
+let cliques = index.cliques();
+for (i, clique) in cliques.iter().enumerate() {
+    println!("Object {}: {} observations", i, clique.len());
+}
+```
+
+### Using Observation Context
+
+Mark observations with shared context (e.g., from the same image or pass) to prevent false merging. Observations in the same context are assumed to have 0 covariance and hence are never merged into a clique:
+
+```rust
+use clique_fusion::{Observation, CovarianceMatrix};
+use uuid::Uuid;
+
+// All observations from the same image share a context
+let image_id = Uuid::new_v4();
+let cov = CovarianceMatrix::identity();
+
+let obs1 = Observation::builder(5.0, 5.0)
+    .error(cov)
+    .context(image_id)
+    .build();
+
+let obs2 = Observation::builder(5.1, 5.1)
+    .error(cov)
+    .context(image_id)
+    .build();
+
+// Even though these observations are spatially very close,
+// they remain separate because they share the same context
+// (indicating they are distinct markings in the same image)
+assert_eq!(obs1.context(), obs2.context());
+```
+
+---
+
 ## Bindings
 
 This library provides C# bindings for easy integration with .NET applications.
