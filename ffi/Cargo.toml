@@ -13,5 +13,5 @@ repository.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-clique-fusion = { version = "0.1.1", path = ".." }
+clique-fusion = { version = "0.2.0", path = ".." }
 uuid = "1.17.0"

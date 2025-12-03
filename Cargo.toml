@@ -12,7 +12,7 @@ repository = "https://github.com/danieleades/clique-fusion"
 [package]
 name = "clique-fusion"
 description = "a library for 'spatial fusion' of separate observations of objects"
-version = "0.1.1"
+version = "0.2.0"
 edition.workspace = true
 license-file.workspace = true
 keywords.workspace = true
