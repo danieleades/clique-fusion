@@ -189,7 +189,7 @@ impl Observation {
         ObservationBuilder::new(x, y)
     }
 
-    #[allow(clippy::doc_markdown)]  // false alarm
+    #[allow(clippy::doc_markdown)] // false alarm
     /// Determines whether two observations are statistically compatible under the assumption
     /// that they represent independent measurements of the same underlying object.
     ///
