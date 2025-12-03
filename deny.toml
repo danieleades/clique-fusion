@@ -5,10 +5,7 @@ confidence-threshold = 1.0
 allow = ["MIT", "Unicode-3.0", "Apache-2.0"]
 
 # This library is allowed to be GPL-3.0, but none of it's dependencies are!
-exceptions = [{ allow = ["GPL-3.0"], crate = "clique-fusion" }]
-clarify = [
-    { crate = "clique-fusion", expression = "GPL-3.0", license-files = [] },
-]
+exceptions = [{ allow = ["GPL-3.0-only"], crate = "clique-fusion" }]
 
 [advisories]
 ignore = ["RUSTSEC-2024-0436"]  # TODO: remove this when 'paste' dependency is removed upstream
