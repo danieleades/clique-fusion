@@ -59,11 +59,6 @@ The C# library depends on a native Rust component (`clique-fusion-ffi`) compiled
 
 - [.NET 6+ SDK](https://dotnet.microsoft.com/)
 - [Rust + cargo](https://rustup.rs/)
-- [`cross`](https://github.com/cross-rs/cross) for cross-compilation
-
-```bash
-cargo install cross
-```
 
 ### 2. Build the native libraries
 
@@ -73,7 +68,7 @@ From the `CliqueFusion` directory:
 ./build-native.sh
 ```
 
-This compiles and copies the native `.so`/`.dll` into `CliqueFusion/runtimes/{linux-x64,win-x64}/native/`
+This compiles the native library for your current platform and copies it into `CliqueFusion/runtimes/<rid>/native/`.
 
 ### 3. Build the C# library
 
@@ -85,12 +80,9 @@ dotnet build
 
 ## ✅ Running Tests
 
-You must build the native library before testing:
+The native library is built automatically as part of the build, so you can run:
 
 ```bash
-cd src/CliqueFusion
-./build-native.sh
-cd ../CliqueFusion.Tests
 dotnet test
 ```
 
@@ -106,7 +98,7 @@ dotnet test --collect:"XPlat Code Coverage"
 
 ```
 CliqueFusion/
-├── build-native.sh        # Builds Rust FFI for Linux/Windows
+├── build-native.sh        # Builds Rust FFI for current platform
 ├── CliqueFusion.csproj    # Main C# wrapper
 ├── Native/                # P/Invoke layer
 ├── Wrappers/              # High-level C# APIs

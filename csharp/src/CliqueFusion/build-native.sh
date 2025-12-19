@@ -3,31 +3,43 @@ set -euo pipefail
 
 WORKSPACE_ROOT=$(cargo locate-project --workspace --message-format plain | xargs dirname)
 
-echo "Checking native FFI builds..."
+PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
-TARGETS=(
-  "linux-x64 x86_64-unknown-linux-gnu libclique_fusion_ffi.so"
-  "win-x64   x86_64-pc-windows-gnu   clique_fusion_ffi.dll"
-)
+echo "Building native FFI for current platform..."
 
-for entry in "${TARGETS[@]}"; do
-  read -r RID TARGET LIB <<< "$entry"
+OS="$(uname -s)"
+case "$OS" in
+  Linux*)
+    RID="linux-x64"
+    LIB="libclique_fusion_ffi.so"
+    ;;
+  Darwin*)
+    RID="osx-x64"
+    LIB="libclique_fusion_ffi.dylib"
+    ;;
+  MINGW*|MSYS*|CYGWIN*)
+    RID="win-x64"
+    LIB="clique_fusion_ffi.dll"
+    ;;
+  *)
+    echo "Unsupported OS for native build: $OS" >&2
+    exit 1
+    ;;
+esac
 
-  echo "→ Building $RID ($TARGET)"
-  cross build --release --target "$TARGET" --package clique-fusion-ffi
+echo "→ Building $RID"
+cargo build --release --package clique-fusion-ffi --manifest-path "$WORKSPACE_ROOT/Cargo.toml"
 
-  SRC="$WORKSPACE_ROOT/target/$TARGET/release/$LIB"
-  DEST="runtimes/$RID/native"
-  DEST_LIB="$DEST/$LIB"
+SRC="$WORKSPACE_ROOT/target/release/$LIB"
+DEST="$PROJECT_ROOT/runtimes/$RID/native"
+DEST_LIB="$DEST/$LIB"
 
-  # Copy only if the file changed
-  mkdir -p "$DEST"
-  if cmp -s "$SRC" "$DEST_LIB"; then
-    echo "✔ $LIB unchanged for $RID"
-  else
-    echo "→ Updating $DEST_LIB"
-    cp "$SRC" "$DEST"
-  fi
-done
+mkdir -p "$DEST"
+if [[ -f "$DEST_LIB" ]] && cmp -s "$SRC" "$DEST_LIB"; then
+  echo "✔ $LIB unchanged"
+else
+  echo "→ Updating $DEST_LIB"
+  cp "$SRC" "$DEST"
+fi
 
 echo "✅ Done."

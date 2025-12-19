@@ -1,12 +1,28 @@
-name: Release
+name: Publish artefacts
 
 on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
-  publish:
-    runs-on: ubuntu-latest
+  ffi:
+    name: Native FFI (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            artifact: ffi-linux-x64
+            path: target/release/libclique_fusion_ffi.so
+          - name: Windows
+            os: windows-latest
+            artifact: ffi-win-x64
+            path: target/release/clique_fusion_ffi.dll
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -14,49 +30,29 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cross (if used by build-native.sh)
-        run: cargo install cross
+      - name: Build FFI
+        run: cargo build --release --package clique-fusion-ffi
 
-      - name: Run build-native.sh (Linux)
-        working-directory: csharp
-        run: ./build-native.sh
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
 
-      - name: Upload Linux FFI artifact
+      - name: Upload release artifact
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            target/x86_64-unknown-linux-gnu/release/libclique_fusion_ffi.so
-            target/x86_64-pc-windows-msvc/release/clique_fusion_ffi.dll
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cross
-        shell: bash
-        run: cargo install cross
-
-      - name: Run build-native.sh (Windows)
-        shell: bash
-        run: ./build-native.sh
-
-      - name: Upload Windows FFI artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            target/x86_64-pc-windows-msvc/release/clique_fusion_ffi.dll
+          files: ${{ matrix.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-nuget:
-    runs-on: windows-latest
+    name: NuGet package
+    needs: [ffi]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: csharp
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -66,15 +62,23 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Restore and build C#
-        run: |
-          dotnet restore
-          dotnet build -c Release
-          dotnet pack -c Release -o out
+      - name: Download native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ffi-linux-x64
+          path: csharp/src/CliqueFusion/runtimes/linux-x64/native
+      - name: Download native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ffi-win-x64
+          path: csharp/src/CliqueFusion/runtimes/win-x64/native
+
+      - name: Pack NuGet (with prebuilt natives)
+        run: dotnet pack src/CliqueFusion -c Release -o out -p:BuildNativeLibraries=false
 
       - name: Upload NuGet package to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: out/*.nupkg
+          files: csharp/out/*.nupkg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
