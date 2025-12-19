@@ -23,8 +23,9 @@
     </Content>
   </ItemGroup>
 
-<Target Name="BuildNativeLibraries" BeforeTargets="Build">
-  <Exec Command="./build-native.sh" WorkingDirectory="$(MSBuildProjectDirectory)" />
-</Target>
+  <Target Name="BuildNativeLibraries" BeforeTargets="Build" Condition="'$(BuildNativeLibraries)' != 'false'">
+    <Exec Condition="'$(OS)' != 'Windows_NT'" Command="./build-native.sh" WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Exec Condition="'$(OS)' == 'Windows_NT'" Command="bash ./build-native.sh" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
 
 </Project>

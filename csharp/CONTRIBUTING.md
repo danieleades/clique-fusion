@@ -12,18 +12,12 @@ Before building or testing, ensure you have the following installed:
 
 - [.NET 6 or later](https://dotnet.microsoft.com/)
 - [Rust and Cargo](https://rustup.rs/)
-- [`cross`](https://github.com/cross-rs/cross) for cross-compiling native libraries:
-
-```bash
-  cargo install cross
-```
 
 You should be able to run these successfully:
 
 ```bash
 dotnet --version
 cargo --version
-cross --version
 ```
 
 ---
@@ -34,9 +28,7 @@ The native FFI component is written in Rust and built automatically as part of t
 
 When you build `CliqueFusion.csproj`, it triggers `build-native.sh` as a pre-build step. This script:
 
-- Uses `cross` to compile the Rust FFI target for:
-  - `x86_64-unknown-linux-gnu` → `libclique_fusion_ffi.so`
-  - `x86_64-pc-windows-gnu` → `clique_fusion_ffi.dll`
+- Uses `cargo` to compile the Rust FFI package for your current platform (e.g. Linux → `libclique_fusion_ffi.so`, Windows → `clique_fusion_ffi.dll`)
 - Copies the resulting binaries into:
 
 ```
@@ -44,6 +36,10 @@ CliqueFusion/runtimes/{linux-x64,win-x64}/native/
 ```
 
 These folders are used by the `.csproj` to embed native assets in the NuGet package.
+
+On Windows, the pre-build hook invokes the script via `bash`, so you’ll need a Bash environment available (e.g. Git Bash) if you want the native build to run automatically.
+
+Note: building a single NuGet package that contains native libraries for multiple platforms requires building those native binaries on each platform and assembling them into `runtimes/` before packing (CI does this for releases).
 
 ---
 

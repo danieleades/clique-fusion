@@ -80,27 +80,60 @@ jobs:
           use_oidc: true
           fail_ci_if_error: true
 
+  ffi-linux:
+    name: Native FFI Build (Linux)
+    needs: [test, format, lint, msrv, docs, cargo-deny, coverage]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --package clique-fusion-ffi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffi-linux-x64
+          path: target/release/libclique_fusion_ffi.so
+
+  ffi-windows:
+    name: Native FFI Build (Windows)
+    needs: [test, format, lint, msrv, docs, cargo-deny, coverage]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --package clique-fusion-ffi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffi-win-x64
+          path: target/release/clique_fusion_ffi.dll
+
   csharp-linux:
     name: C# Build & Test (Linux)
-    needs: [test, format, lint, msrv, docs, cargo-deny, coverage]
+    needs: [ffi-linux, ffi-windows]
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: csharp
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cross
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffi-linux-x64
+          path: csharp/src/CliqueFusion/runtimes/linux-x64/native
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffi-win-x64
+          path: csharp/src/CliqueFusion/runtimes/win-x64/native
+
       # 1. Restore & build core projects via solution filter
       - run: dotnet restore CliqueFusion.buildonly.slnf
-      - run: dotnet build CliqueFusion.buildonly.slnf --no-restore --warnaserror --configuration Release
+      - run: dotnet build CliqueFusion.buildonly.slnf --no-restore --warnaserror --configuration Release -p:BuildNativeLibraries=false
 
       # 2. Pack the main library
-      - run: dotnet pack src/CliqueFusion --output ./nupkgs --no-build --configuration Release
+      - run: dotnet pack src/CliqueFusion --output ./nupkgs --no-build --configuration Release -p:BuildNativeLibraries=false
 
       # 3. Restore full solution (SmokeTest now resolvable via nupkg)
       - run: dotnet restore
@@ -109,8 +142,9 @@ jobs:
       - run: dotnet format CliqueFusion.sln --verify-no-changes --verbosity diagnostic
 
       # 5. Run all tests and SmokeTest
-      - run: dotnet test --no-restore --configuration Release
-      - run: dotnet run --project src/CliqueFusion.SmokeTest --no-restore --configuration Release
+      - run: dotnet test --no-restore --no-build --configuration Release
+      - run: dotnet build src/CliqueFusion.SmokeTest --no-restore --configuration Release
+      - run: dotnet run --project src/CliqueFusion.SmokeTest --no-restore --no-build --configuration Release
 
       - uses: actions/upload-artifact@v4
         with:
@@ -133,7 +167,9 @@ jobs:
         with:
           name: packed-nupkg
           path: csharp/nupkgs
-      - run: dotnet run --project src/CliqueFusion.SmokeTest --configuration Release
+      - run: dotnet restore
+      - run: dotnet build src/CliqueFusion.SmokeTest --no-restore --configuration Release
+      - run: dotnet run --project src/CliqueFusion.SmokeTest --no-restore --no-build --configuration Release
 
   dependabot:
     needs:
