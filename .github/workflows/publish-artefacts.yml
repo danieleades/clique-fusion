@@ -8,9 +8,21 @@ permissions:
   contents: write
 
 jobs:
-  ffi-linux:
-    name: Native FFI (Linux)
-    runs-on: ubuntu-latest
+  ffi:
+    name: Native FFI (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            artifact: ffi-linux-x64
+            path: target/release/libclique_fusion_ffi.so
+          - name: Windows
+            os: windows-latest
+            artifact: ffi-win-x64
+            path: target/release/clique_fusion_ffi.dll
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -24,47 +36,19 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ffi-linux-x64
-          path: target/release/libclique_fusion_ffi.so
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
 
-      - name: Upload Linux FFI artifact
+      - name: Upload release artifact
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            target/release/libclique_fusion_ffi.so
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  ffi-windows:
-    name: Native FFI (Windows)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build FFI
-        run: cargo build --release --package clique-fusion-ffi
-
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffi-win-x64
-          path: target/release/clique_fusion_ffi.dll
-
-      - name: Upload Windows FFI artifact
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            target/release/clique_fusion_ffi.dll
+          files: ${{ matrix.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-nuget:
     name: NuGet package
-    needs: [ffi-linux, ffi-windows]
+    needs: [ffi]
     runs-on: ubuntu-latest
     defaults:
       run:
