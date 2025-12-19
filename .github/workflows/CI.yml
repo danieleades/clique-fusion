@@ -5,6 +5,9 @@ on:
 
 name: Continuous integration
 
+permissions:
+  id-token: write
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -74,7 +77,7 @@ jobs:
       - uses: codecov/codecov-action@v5
         with:
           files: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           fail_ci_if_error: true
 
   csharp-linux:
