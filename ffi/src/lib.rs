@@ -1,3 +1,5 @@
+//! C FFI bindings for the `clique_fusion` crate.
+
 use clique_fusion::{
     CHI2_2D_CONFIDENCE_90, CHI2_2D_CONFIDENCE_95, CHI2_2D_CONFIDENCE_99, CliqueIndex,
     CovarianceMatrix, Observation, Unique,
@@ -5,16 +7,19 @@ use clique_fusion::{
 use uuid::Uuid;
 
 #[unsafe(no_mangle)]
+/// Returns the chi-squared confidence threshold at 90% for 2D observations.
 pub const extern "C" fn CliqueIndex_chi2_confidence_90() -> f64 {
     CHI2_2D_CONFIDENCE_90
 }
 
 #[unsafe(no_mangle)]
+/// Returns the chi-squared confidence threshold at 95% for 2D observations.
 pub const extern "C" fn CliqueIndex_chi2_confidence_95() -> f64 {
     CHI2_2D_CONFIDENCE_95
 }
 
 #[unsafe(no_mangle)]
+/// Returns the chi-squared confidence threshold at 99% for 2D observations.
 pub const extern "C" fn CliqueIndex_chi2_confidence_99() -> f64 {
     CHI2_2D_CONFIDENCE_99
 }
@@ -23,14 +28,21 @@ type UuidC = [u8; 16];
 
 #[derive(Debug, Clone)]
 #[repr(C)]
+/// C-compatible observation data with covariance and optional context.
 pub struct ObservationC {
+    /// Observation UUID (16 bytes).
     pub id: UuidC,
+    /// X coordinate.
     pub x: f64,
+    /// Y coordinate.
     pub y: f64,
+    /// Covariance XX term.
     pub cov_xx: f64,
+    /// Covariance XY term.
     pub cov_xy: f64,
+    /// Covariance YY term.
     pub cov_yy: f64,
-    /// A Uuid. a null uuid is equivalent to providing no context.
+    /// Optional context UUID; a nil UUID is treated as no context.
     pub context: UuidC,
 }
 
@@ -139,9 +151,12 @@ pub unsafe extern "C" fn CliqueIndex_insert(
 /// # Fields
 /// - `uuids`: A pointer to an array of 16-byte UUIDs. Must be valid for reads.
 /// - `len`: The number of UUIDs in this clique.
+#[derive(Debug)]
 #[repr(C)]
 pub struct CliqueC {
+    /// Pointer to an array of 16-byte UUIDs.
     pub uuids: *const UuidC,
+    /// Number of UUIDs in the clique.
     pub len: usize,
 }
 
@@ -150,9 +165,12 @@ pub struct CliqueC {
 /// # Fields
 /// - `cliques`: Pointer to an array of [`CliqueC`] structures.
 /// - `len`: Number of cliques in the set.
+#[derive(Debug)]
 #[repr(C)]
 pub struct CliqueSetC {
+    /// Pointer to an array of `CliqueC` structures.
     pub cliques: *const CliqueC,
+    /// Number of cliques in the set.
     pub len: usize,
 }
 
@@ -262,6 +280,7 @@ pub unsafe extern "C" fn CliqueIndex_free(ptr: *mut CliqueIndex<Uuid>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_relative_eq;
     use clique_fusion::Observation;
     use uuid::Uuid;
 
@@ -306,8 +325,8 @@ mod tests {
         let unique: Unique<Observation, Uuid> = obs_c.into();
 
         assert_eq!(unique.id, id);
-        assert_eq!(unique.data.x(), 1.0);
-        assert_eq!(unique.data.y(), 2.0);
+        assert_relative_eq!(unique.data.x(), 1.0, epsilon = 1e-12);
+        assert_relative_eq!(unique.data.y(), 2.0, epsilon = 1e-12);
         assert_eq!(unique.data.context(), None);
     }
 
@@ -329,8 +348,8 @@ mod tests {
         let unique: Unique<Observation, Uuid> = obs_c.into();
 
         assert_eq!(unique.id, id);
-        assert_eq!(unique.data.x(), 3.0);
-        assert_eq!(unique.data.y(), 4.0);
+        assert_relative_eq!(unique.data.x(), 3.0, epsilon = 1e-12);
+        assert_relative_eq!(unique.data.y(), 4.0, epsilon = 1e-12);
         assert_eq!(unique.data.context(), Some(ctx));
     }
 }

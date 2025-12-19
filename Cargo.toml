@@ -9,6 +9,18 @@ categories = ["science::geo", "science::robotics"]
 rust-version = "1.85.1"
 repository = "https://github.com/danieleades/clique-fusion"
 
+
+[workspace.lints.rust]
+missing_docs = "deny"
+missing_debug_implementations = "deny"
+
+[workspace.lints.clippy]
+all ="deny"
+pedantic = "warn"
+nursery = "warn"
+cargo = "deny"
+
+
 [package]
 name = "clique-fusion"
 description = "a library for 'spatial fusion' of separate observations of objects"
@@ -38,12 +50,5 @@ uuid = { version = "1.17.0", features = ["serde"] }
 name = "processing"
 harness = false
 
-[lints.rust]
-missing_docs = "deny"
-missing_debug_implementations = "deny"
-
-[lints.clippy]
-all ="deny"
-pedantic = "warn"
-nursery = "warn"
-cargo = "deny"
+[lints]
+workspace = true
