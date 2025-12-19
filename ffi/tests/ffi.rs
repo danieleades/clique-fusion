@@ -1,3 +1,5 @@
+//! Integration tests for the C FFI surface.
+
 use clique_fusion::CHI2_2D_CONFIDENCE_95;
 use clique_fusion_ffi::{
     CliqueC, CliqueIndex_cliques, CliqueIndex_free, CliqueIndex_from_observations, CliqueSetC_free,
@@ -35,7 +37,7 @@ fn test_create_insert_cliques_free() {
     let obs2 = make_observation(id2, 1.05, 1.05);
     let obs3 = make_observation(id3, 50.0, 50.0); // Clearly separate
 
-    let observations = vec![obs1, obs2, obs3];
+    let observations = [obs1, obs2, obs3];
 
     let index_ptr =
         unsafe { CliqueIndex_from_observations(chi2, observations.as_ptr(), observations.len()) };

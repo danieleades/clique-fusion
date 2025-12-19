@@ -489,7 +489,7 @@ mod tests {
         let target_det: f64 = -0.5 * det_tol;
 
         // xy' so that xx*yy - xy'^2 = target_det
-        let xy_pert: f64 = (xx * yy - target_det).sqrt();
+        let xy_pert: f64 = xx.mul_add(yy, -target_det).sqrt();
 
         let cov = CovarianceMatrix::new(xx, yy, xy_pert);
         assert!(
@@ -548,7 +548,7 @@ mod tests {
         // Nearly singular but within tolerance
         let xx: f64 = 1.0;
         let yy: f64 = 1.0;
-        let xy: f64 = (xx * yy - 1e-20).sqrt(); // det ≈ 1e-20
+        let xy: f64 = xx.mul_add(yy, -1e-20).sqrt(); // det ≈ 1e-20
         let cov = CovarianceMatrix::new(xx, yy, xy).unwrap();
 
         // Numerical functions remain stable

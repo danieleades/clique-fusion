@@ -203,7 +203,7 @@ impl Observation {
     ///     Cov[A − B] = Cov[A] + Cov[B]
     ///
     /// The Mahalanobis distance is then:
-    ///     d² = (A − B)ᵀ ⋅ (Σ_A + Σ_B)⁻¹ ⋅ (A − B)
+    ///     `d² = (A − B)ᵀ ⋅ (Σ_A + Σ_B)⁻¹ ⋅ (A − B)`
     ///
     /// If this distance is less than or equal to the given chi-squared threshold (typically based
     /// on 2 degrees of freedom for 2D), the observations are considered compatible.
