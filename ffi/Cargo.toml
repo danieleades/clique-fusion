@@ -14,7 +14,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 clique-fusion = { version = "0.1.1", path = ".." }
-uuid = "1.20.0"
+uuid = "1.21.0"
 
 [dev-dependencies]
 approx = "0.5.1"
