@@ -34,7 +34,7 @@ repository.workspace = true
 
 [dependencies]
 nalgebra = "0.33.3"
-rstar = "0.12.2"
+rstar = "0.13.0"
 thiserror = "2.0.18"
 uuid = { version = "1.20.0", features = ["v4"] }
 
